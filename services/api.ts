@@ -102,6 +102,13 @@ export const api = {
         return handleResponse(res);
     },
 
+    async deleteUser(userId: string) {
+        const res = await fetch(`/api/users/${userId}`, {
+            method: 'DELETE'
+        });
+        return handleResponse(res);
+    },
+
     // --- TICKETS ---
     async getTickets(): Promise<Ticket[]> {
         const res = await fetch('/api/tickets');

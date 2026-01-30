@@ -416,6 +416,16 @@ app.put('/api/users/:id', checkDb, async (req, res) => {
     }
 });
 
+// Delete User Endpoint
+app.delete('/api/users/:id', checkDb, async (req, res) => {
+    try {
+        await safeQuery('DELETE FROM users WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 4. TICKETS
 app.get('/api/tickets', checkDb, async (req, res) => {
     try {

@@ -385,7 +385,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       api.replyTicket(ticketId, 'ADMIN', reply).catch(() => {});
   };
   
-  const deleteUser = (userId: string) => { setAllUsers(prev => prev.filter(u => u.id !== userId)); if (user && user.id === userId) logout(); };
+  const deleteUser = (userId: string) => { 
+      setAllUsers(prev => prev.filter(u => u.id !== userId)); 
+      if (user && user.id === userId) logout(); 
+      // REAL API CALL ADDED
+      api.deleteUser(userId).catch(err => console.error('Failed to delete user:', err));
+  };
   
   const adminUpdateUser = (userId: string, updates: Partial<User>) => { 
       setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u)); 
