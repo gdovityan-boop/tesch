@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { UserRole } from '../types';
-import { Terminal, Mail, Lock, User as UserIcon, LogIn, Loader, Info, CheckCircle, ArrowLeft, Check, HelpCircle, ChevronRight } from 'lucide-react';
+import { Terminal, Mail, Lock, User as UserIcon, LogIn, Loader, Info, CheckCircle, ArrowLeft, Check, HelpCircle, ChevronRight, Server, WifiOff } from 'lucide-react';
 import { ADMIN_TELEGRAM_IDS } from '../services/mockData';
 import { authService } from '../services/authService';
 
@@ -35,6 +35,22 @@ export const Login = () => {
   // Reset State
   const [isResetting, setIsResetting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
+  // Health Check State
+  const [apiStatus, setApiStatus] = useState<'CHECKING' | 'ONLINE' | 'OFFLINE'>('CHECKING');
+
+  useEffect(() => {
+      const checkApi = async () => {
+          try {
+              const res = await fetch('/api/health');
+              if (res.ok) setApiStatus('ONLINE');
+              else setApiStatus('OFFLINE');
+          } catch (e) {
+              setApiStatus('OFFLINE');
+          }
+      };
+      checkApi();
+  }, []);
 
   // Inject Telegram Widget
   useEffect(() => {
@@ -172,10 +188,20 @@ export const Login = () => {
                 <p className="text-gray-500 text-xs mt-2">
                     {language === 'RU' ? 'Введите идентификатор для входа в систему' : 'Enter credentials to access the system'}
                 </p>
-                <div className="mt-4 flex justify-center">
+                
+                <div className="mt-4 flex flex-col items-center gap-2">
                     <span className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] font-bold text-green-400 animate-pulse">
-                        SYSTEM v2.8.4 ONLINE
+                        SYSTEM v2.8.5 ONLINE
                     </span>
+                    
+                    {/* API STATUS INDICATOR */}
+                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold border ${
+                        apiStatus === 'ONLINE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 
+                        apiStatus === 'OFFLINE' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-gray-800 text-gray-500 border-gray-700'
+                    }`}>
+                        {apiStatus === 'ONLINE' ? <Server size={10} /> : apiStatus === 'OFFLINE' ? <WifiOff size={10} /> : <Loader size={10} className="animate-spin" />}
+                        {apiStatus === 'ONLINE' ? 'DB CONNECTED' : apiStatus === 'OFFLINE' ? 'DB DISCONNECTED' : 'CHECKING DB...'}
+                    </div>
                 </div>
             </div>
             
