@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
@@ -12,14 +13,19 @@
         theme: {
           extend: {
             colors: {
+              background: '#000000',
+              surface: '#09090b', // Zinc-950
+              surfaceHighlight: '#18181b', // Zinc-900
+              border: '#27272a', // Zinc-800
+              primary: '#ffffff', // White text
+              secondary: '#a1a1aa', // Zinc-400 text
+              accent: '#3b82f6', // Blue-500 (Professional Accent)
+              // Keep legacy cyber names for compatibility but map to new palette
               cyber: {
-                900: '#0a0a0f',
-                800: '#12121a',
-                700: '#1c1c2e',
-                primary: '#00f0ff', // Neon Cyan
-                secondary: '#7000ff', // Neon Purple
-                accent: '#00ff9d', // Neon Green
-                danger: '#ff003c'
+                900: '#000000',
+                800: '#09090b',
+                primary: '#3b82f6', // Mapped to Blue
+                secondary: '#a1a1aa',
               }
             },
             fontFamily: {
@@ -27,7 +33,18 @@
               mono: ['JetBrains Mono', 'monospace'],
             },
             animation: {
-              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'fade-in': 'fadeIn 0.5s ease-out',
+              'slide-up': 'slideUp 0.5s ease-out',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { transform: 'translateY(10px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              }
             }
           }
         }
@@ -36,64 +53,93 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
       body {
-        background-color: #0a0a0f;
-        color: #e2e8f0;
-        /* ANTI-COPY STYLES */
-        -webkit-user-select: none; /* Safari */
-        -ms-user-select: none; /* IE 10 and IE 11 */
-        user-select: none; /* Standard syntax */
-        -webkit-touch-callout: none; /* iOS Safari */
+        background-color: #000000;
+        color: #ffffff;
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow-x: hidden;
       }
-      /* Allow selection in inputs only */
-      input, textarea {
-        -webkit-user-select: text;
-        user-select: text;
-      }
-      /* Custom Scrollbar for Cyber feel */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #12121a;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #334155;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #00f0ff;
-      }
-      /* Hide images from drag */
-      img {
+      
+      /* Subtle Grid Background */
+      .bg-grid {
+        background-size: 40px 40px;
+        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
         pointer-events: none;
       }
+
+      /* Clean Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #27272a;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #3f3f46;
+      }
+
+      /* Utilities */
+      .glass-panel {
+        background: rgba(9, 9, 11, 0.6);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      
+      input, textarea, select {
+        background: #09090b !important;
+        border: 1px solid #27272a !important;
+        color: white !important;
+        transition: border-color 0.2s;
+      }
+      input:focus, textarea:focus, select:focus {
+        border-color: #3b82f6 !important;
+        outline: none;
+      }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react/": "https://esm.sh/react@18.3.1/",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
-    "lucide-react": "https://esm.sh/lucide-react@0.378.0",
-    "react-router-dom": "https://esm.sh/react-router-dom@6.23.1?deps=react@18.3.1,react-dom@18.3.1",
-    "crypto-js": "https://esm.sh/crypto-js@4.1.1",
-    "mysql2/": "https://esm.sh/mysql2@^3.16.2/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
     "dotenv": "https://esm.sh/dotenv@^17.2.3",
+    "crypto-js": "https://esm.sh/crypto-js@^4.2.0",
+    "react-dom": "https://esm.sh/react-dom@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "express": "https://esm.sh/express@^5.2.1",
-    "body-parser": "https://esm.sh/body-parser@^2.2.2",
+    "url": "https://esm.sh/url@^0.11.4",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "mysql2/": "https://esm.sh/mysql2@^3.16.2/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
     "cors": "https://esm.sh/cors@^2.8.6",
+    "path": "https://esm.sh/path@^0.12.7",
+    "body-parser": "https://esm.sh/body-parser@^2.2.2",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "path": "https://esm.sh/path@^0.12.7",
-    "url": "https://esm.sh/url@^0.11.4"
+    "helmet": "https://esm.sh/helmet@^8.1.0",
+    "compression": "https://esm.sh/compression@^1.8.1",
+    "morgan": "https://esm.sh/morgan@^1.10.1",
+    "pg": "https://esm.sh/pg@^8.17.2"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
+    <div class="bg-grid"></div>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>
