@@ -163,24 +163,36 @@ app.put('/api/orders/:id', async (req, res) => {
 
 // 3. AUTH
 app.post('/api/auth/login', async (req, res) => {
-  const { email, name, telegramId, avatarUrl, registrationSource } = req.body;
+  const { email, name, telegramId, avatarUrl, registrationSource, isRegister } = req.body;
   try {
     // Basic validation
     if (!email) throw new Error("Email is required");
 
     const { rows: existing } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (existing.length > 0) return res.json(existing[0]);
     
-    const userId = `user-${Date.now()}`;
-    await pool.query(
-      'INSERT INTO users (id, email, name, role, avatar_url, telegram_id, registration_source) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
-    );
-    const { rows: newUser } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-    res.json(newUser[0]);
+    // STRICT LOGIN LOGIC
+    if (!isRegister) {
+        // Attempting to login
+        if (existing.length === 0) {
+            return res.status(404).json({ error: "Пользователь не найден. Пожалуйста, зарегистрируйтесь. / User not found. Please register." });
+        }
+        return res.json(existing[0]);
+    } else {
+        // Attempting to register
+        if (existing.length > 0) {
+             return res.status(409).json({ error: "Пользователь уже существует. Пожалуйста, войдите. / User already exists. Please login." });
+        }
+        
+        const userId = `user-${Date.now()}`;
+        await pool.query(
+          'INSERT INTO users (id, email, name, role, avatar_url, telegram_id, registration_source) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
+        );
+        const { rows: newUser } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+        return res.json(newUser[0]);
+    }
   } catch (err) {
-    console.error("Login Failed:", err.message);
-    // Return explicit error for frontend
+    console.error("Auth Failed:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

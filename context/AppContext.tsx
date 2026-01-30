@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { User, Product, Order, Ticket, Language, UserRole, ServiceRequest, OrderStatus, TicketStatus, Review, ServiceOffering, UserPreferences, ResourceItem, ResourceCategory } from '../types';
-import { MOCK_PRODUCTS, MOCK_USER, MOCK_ADMIN, MOCK_ORDERS, MOCK_TICKETS, MOCK_ALL_USERS, MOCK_SERVICE_REQUESTS, ADMIN_TELEGRAM_IDS, TELEGRAM_BOT_USERNAME, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_CHAT_ID, MOCK_REVIEWS, MOCK_BONUS_ITEMS, MOCK_SERVICE_OFFERINGS } from '../services/mockData';
+import { User, Product, Order, Ticket, Language, UserRole, ServiceRequest, OrderStatus, TicketStatus, Review, ServiceOffering, UserPreferences, ResourceItem } from '../types';
+import { TELEGRAM_BOT_USERNAME, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_CHAT_ID } from '../services/mockData';
 import { secureStorage } from '../services/secureStorage';
 import { api } from '../services/api'; 
 
@@ -22,9 +22,9 @@ interface AppContextType {
       botToken: string; 
       adminChatId: string; 
       botUsername: string;
-      emailServiceId?: string;
-      emailTemplateId?: string;
-      emailPublicKey?: string;
+      emailServiceId: string;
+      emailTemplateId: string;
+      emailPublicKey: string;
   };
   trendingConfig: { mode: 'AUTOMATIC' | 'MANUAL', manualProductIds: string[] };
   trendingProducts: Product[];
@@ -32,7 +32,7 @@ interface AppContextType {
   welcomeGift: Product | null;
   unreadCount: number;
   successNotification: Order | null; 
-  login: (email: string, role?: UserRole, name?: string, telegramData?: Partial<User>, avatarUrl?: string) => void;
+  login: (email: string, role?: UserRole, name?: string, telegramData?: Partial<User>, avatarUrl?: string, isRegister?: boolean) => Promise<void>;
   logout: () => void;
   updateUserProfile: (name: string, avatarUrl: string) => void;
   toggleUserPreference: (key: keyof UserPreferences) => void;
@@ -63,7 +63,7 @@ interface AppContextType {
   adminReply: (ticketId: string, reply: string) => void;
   deleteUser: (userId: string) => void;
   adminUpdateUser: (userId: string, updates: Partial<User>) => void;
-  updateTelegramSettings: (token: string, chatId: string, username: string, emailServiceId?: string, emailTemplateId?: string, emailPublicKey?: string) => void;
+  updateTelegramSettings: (token: string, chatId: string, username: string, emailServiceId: string, emailTemplateId: string, emailPublicKey: string) => void;
   updateTrendingConfig: (mode: 'AUTOMATIC' | 'MANUAL', ids: string[]) => void;
   updateBonusProduct: (productId: string | null) => void;
   closeWelcomeGift: () => void;
@@ -87,14 +87,12 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
-  // --- STATES ---
-  
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('app_language') as Language) || 'RU');
   const [user, setUser] = useState<User | null>(() => secureStorage.getItem('app_current_user', null));
-  const [allUsers, setAllUsers] = useState<User[]>(() => secureStorage.getItem('app_users', MOCK_ALL_USERS));
   
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [bonusItems, setBonusItems] = useState<Product[]>(() => secureStorage.getItem('app_bonus_items', MOCK_BONUS_ITEMS));
+  const [bonusItems, setBonusItems] = useState<Product[]>([]);
   const [serviceOfferings, setServiceOfferings] = useState<ServiceOffering[]>([]);
   const [resources, setResources] = useState<ResourceItem[]>([]);
   
@@ -110,73 +108,62 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [welcomeGift, setWelcomeGift] = useState<Product | null>(null);
 
   const [telegramSettings, setTelegramSettings] = useState(() => {
-      const defaultSettings = { botToken: TELEGRAM_BOT_TOKEN || '', adminChatId: TELEGRAM_ADMIN_CHAT_ID || '', botUsername: TELEGRAM_BOT_USERNAME || '', emailServiceId: '', emailTemplateId: '', emailPublicKey: '' };
+      const defaultSettings = { 
+          botToken: TELEGRAM_BOT_TOKEN || '', 
+          adminChatId: TELEGRAM_ADMIN_CHAT_ID || '', 
+          botUsername: TELEGRAM_BOT_USERNAME || '', 
+          emailServiceId: '', 
+          emailTemplateId: '', 
+          emailPublicKey: '' 
+      };
       return secureStorage.getItem('telegram_settings', defaultSettings);
   });
 
   const [trendingConfig, setTrendingConfig] = useState<{ mode: 'AUTOMATIC' | 'MANUAL', manualProductIds: string[] }>(() => secureStorage.getItem('trending_config', { mode: 'AUTOMATIC', manualProductIds: [] }));
 
-  // --- INITIAL DATA FETCH ---
+  // --- SERVER SYNC ---
   useEffect(() => {
     const fetchServerData = async () => {
         try {
-            console.log('Connecting to server...');
-            
-            // 1. Fetch Products
-            const serverProducts = await api.getProducts();
-            if (serverProducts) setProducts(serverProducts);
+            const serverProducts = await api.getProducts().catch(() => []);
+            setProducts(serverProducts);
 
-            // 2. Fetch Services
-            const serverServices = await api.getServices();
-            if (serverServices) setServiceOfferings(serverServices);
+            const serverServices = await api.getServices().catch(() => []);
+            setServiceOfferings(serverServices);
 
-            // 3. Fetch Resources
-            const serverResources = await api.getResources();
-            if (serverResources) setResources(serverResources);
+            const serverResources = await api.getResources().catch(() => []);
+            setResources(serverResources);
 
-            // 4. Fetch Reviews
-            const serverReviews = await api.getReviews();
-            if (serverReviews) setReviews(serverReviews);
+            const serverReviews = await api.getReviews().catch(() => []);
+            setReviews(serverReviews);
 
-            // 5. Fetch Global Orders & Tickets (For Dashboard)
-            // For a simple platform, we load all data to client state. 
-            // In a huge app, we would paginate or only load admin data when in admin panel.
-            try {
-                const serverOrders = await api.getAllOrders();
-                if (serverOrders) setOrders(serverOrders);
+            if (user) {
+                const serverOrders = user.role === UserRole.ADMIN ? await api.getAllOrders() : await api.getUserOrders(user.id);
+                setOrders(serverOrders || []);
 
                 const serverTickets = await api.getTickets();
-                if (serverTickets) setTickets(serverTickets);
+                const relevantTickets = user.role === UserRole.ADMIN ? serverTickets : serverTickets.filter(t => t.userId === user.id);
+                setTickets(relevantTickets || []);
+            }
 
-                const serverRequests = await api.getServiceRequests();
-                if (serverRequests) setServiceRequests(serverRequests);
-                
+            if (user?.role === UserRole.ADMIN) {
                 const serverUsers = await api.getAllUsers();
-                if (serverUsers) setAllUsers(serverUsers);
-
-            } catch (e) {
-                console.log('Could not fetch protected data (orders/tickets) yet.');
+                setAllUsers(serverUsers || []);
+                
+                const serverRequests = await api.getServiceRequests();
+                setServiceRequests(serverRequests || []);
             }
 
         } catch (error) {
-            console.log('Server offline or not configured, using local storage/mock data.');
-            setProducts(secureStorage.getItem('app_products', MOCK_PRODUCTS));
-            setServiceOfferings(secureStorage.getItem('app_services', MOCK_SERVICE_OFFERINGS));
-            setResources(secureStorage.getItem('app_resources', [])); 
-            setOrders(MOCK_ORDERS);
-            setTickets(MOCK_TICKETS);
-            setReviews(MOCK_REVIEWS);
-            setServiceRequests(MOCK_SERVICE_REQUESTS);
+            console.error('Data Sync Error:', error);
         }
     };
     fetchServerData();
-  }, [user]); // Re-fetch when user logs in to ensure they get data permissions
+  }, [user]);
 
-  // --- PERSISTENCE EFFECTS ---
   useEffect(() => { secureStorage.setItem('app_current_user', user); }, [user]);
   useEffect(() => { secureStorage.setItem('app_cart', cart); }, [cart]);
   
-  // Computed Trending Products
   const trendingProducts = useMemo(() => {
     if (trendingConfig.mode === 'MANUAL') {
         if (trendingConfig.manualProductIds.length === 0) return products.slice(0, 3);
@@ -194,7 +181,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   }, [products, orders, trendingConfig]);
 
-  // --- ACTIONS ---
   const toggleLanguage = () => {
     setLanguage(prev => {
         const newLang = prev === 'RU' ? 'EN' : 'RU';
@@ -203,59 +189,43 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     });
   };
 
-  const login = async (email: string, role: UserRole = UserRole.USER, name?: string, telegramData?: Partial<User>, avatarUrl?: string) => {
-    // 1. Try SERVER Login
+  const login = async (email: string, role: UserRole = UserRole.USER, name?: string, telegramData?: Partial<User>, avatarUrl?: string, isRegister: boolean = false) => {
     try {
-        const serverUser = await api.login({
+        const serverUser: any = await api.login({
             email,
             name,
             telegramId: telegramData?.telegramId,
             avatarUrl: avatarUrl || telegramData?.avatarUrl,
-            registrationSource: telegramData ? 'TELEGRAM' : 'EMAIL'
-        });
-        if (serverUser) {
-            setUser({ ...serverUser, role: role }); 
-            return;
-        }
-    } catch (e) {
-        console.warn('Login API failed, falling back to local.', e);
-    }
-
-    // 2. Fallback LOCAL Login
-    let finalRole = role;
-    let userId = telegramData?.id;
-    if (!userId) {
-        const existingMock = allUsers.find(u => u.email === email);
-        userId = existingMock ? existingMock.id : `user-${Date.now()}`;
-    }
-
-    const existingUser = allUsers.find(u => u.id === userId || u.email === email);
-
-    if (existingUser) {
-        setUser({ ...existingUser, role: existingUser.email === MOCK_ADMIN.email ? UserRole.ADMIN : role });
-    } else {
-        const newUser: User = {
-            id: userId,
-            email: email,
-            name: name || email.split('@')[0],
-            role: finalRole,
-            avatarUrl: avatarUrl || telegramData?.avatarUrl || 'https://via.placeholder.com/100',
             registrationSource: telegramData ? 'TELEGRAM' : 'EMAIL',
-            telegramId: telegramData?.telegramId,
-            preferences: { telegramNotifications: true, emailNewsletter: true, securityAlerts: true }
-        };
-        setAllUsers(prev => [...prev, newUser]);
-        setUser(newUser);
+            isRegister
+        });
+
+        if (serverUser) {
+            setUser({ ...serverUser }); 
+            setAllUsers(prev => {
+                const exists = prev.find(u => u.id === serverUser.id);
+                return exists ? prev.map(u => u.id === serverUser.id ? serverUser : u) : [...prev, serverUser];
+            });
+        }
+    } catch (e: any) {
+        console.error('Login Error:', e);
+        // Show simplified message to user, detailed to console
+        alert(`${e.message}`);
+        throw e;
     }
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+      setUser(null);
+      setOrders([]);
+      setTickets([]);
+      secureStorage.removeItem('app_current_user');
+  };
 
   const updateUserProfile = (name: string, avatarUrl: string) => {
     if (user) {
       const updatedUser = { ...user, name, avatarUrl };
       setUser(updatedUser);
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
     }
   };
 
@@ -282,8 +252,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const removeFromCart = (productId: string) => { setCart(prev => prev.filter(p => p.id !== productId)); };
   const clearCart = () => setCart([]);
 
-  const updateTelegramSettings = (token: string, chatId: string, username: string, emailServiceId?: string, emailTemplateId?: string, emailPublicKey?: string) => {
-    const newSettings = { botToken: token, adminChatId: chatId, botUsername: username, emailServiceId, emailTemplateId, emailPublicKey };
+  const updateTelegramSettings = (token: string, chatId: string, username: string, emailServiceId: string, emailTemplateId: string, emailPublicKey: string) => {
+    const newSettings = { 
+        botToken: token, 
+        adminChatId: chatId, 
+        botUsername: username, 
+        emailServiceId, 
+        emailTemplateId, 
+        emailPublicKey
+    };
     setTelegramSettings(newSettings);
     secureStorage.setItem('telegram_settings', newSettings);
   };
@@ -297,27 +274,28 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const sendTelegramNotification = async (message: string) => {
     if (!telegramSettings.botToken || !telegramSettings.adminChatId) return;
     try {
-      await fetch(`https://api.telegram.org/bot${telegramSettings.botToken}/sendMessage`, {
+      fetch(`https://api.telegram.org/bot${telegramSettings.botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: telegramSettings.adminChatId, text: message, parse_mode: 'HTML' }),
-      });
-    } catch (error) { console.error('Failed to send Telegram notification', error); }
+      }).catch(e => console.log('Telegram send failed'));
+    } catch (error) {}
   };
 
   const createOrder = async () => {
     if (!user) return null;
+    const orderData = {
+        userId: user.id,
+        items: [...cart],
+        total: cart.reduce((sum, p) => sum + p.price, 0),
+        paymentMethod: 'PENDING'
+    };
+    
     try {
-        const orderData = {
-            userId: user.id,
-            items: [...cart],
-            total: cart.reduce((sum, p) => sum + p.price, 0),
-            paymentMethod: 'PENDING'
-        };
-        const serverRes = await api.createOrder(orderData);
-        if (serverRes && serverRes.success) {
-            const newOrder: Order = {
-                id: serverRes.orderId,
+        const res = await api.createOrder(orderData);
+        if (res && res.orderId) {
+             const newOrder: Order = {
+                id: res.orderId,
                 userId: user.id,
                 items: [...cart],
                 total: orderData.total,
@@ -328,40 +306,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             return newOrder;
         }
     } catch (e) {
-        console.warn('Server order failed, using local fallback', e);
+        console.error("Order creation failed", e);
+        alert("Failed to create order. Server error.");
+        return null;
     }
-    // Fallback
-    const newOrder: Order = {
-      id: `ord-${Date.now()}`,
-      userId: user.id,
-      items: [...cart],
-      total: cart.reduce((sum, p) => sum + p.price, 0),
-      status: OrderStatus.PENDING,
-      date: new Date().toISOString().split('T')[0]
-    };
-    setOrders(prev => [newOrder, ...prev]);
-    return newOrder;
+    return null;
   };
 
   const confirmPayment = async (orderId: string, method: string) => {
+      setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? { ...o, status: OrderStatus.PROCESSING, paymentMethod: method as any } : o));
+
+      const currentOrder = orders.find(o => o.id === orderId) || { id: orderId, userId: user?.id, items: cart, total: 0 } as any;
+      setSuccessNotification({ ...currentOrder, status: OrderStatus.PROCESSING });
+
       try {
           await api.updateOrderStatus(orderId, OrderStatus.PROCESSING);
-      } catch(e) {}
-      
-      setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? { ...o, status: OrderStatus.PROCESSING, paymentMethod: method as any } : o));
-      clearCart();
-      const order = orders.find(o => o.id === orderId);
-      if(order) {
-          const itemsList = order.items?.map((i: Product) => `▫️ ${i.title} ($${i.price})`).join('\n') || 'Items';
-          await sendTelegramNotification(`<b>⚠️ Требуется проверка</b>\nID: ${order.id}\nUser: ${user?.name}\nTotal: ${order.total}\nMethod: ${method}\n\n${itemsList}`);
+          
+          const itemsList = currentOrder.items?.map((i: Product) => `▫️ ${i.title} ($${i.price})`).join('\n') || 'Items';
+          const msg = `<b>⚠️ Требуется проверка</b>\nID: ${orderId}\nUser: ${user?.name}\nTotal: ${currentOrder.total}\nMethod: ${method}\n\n${itemsList}`;
+          sendTelegramNotification(msg);
+
+          clearCart();
+      } catch (e) {
+          console.error("Payment confirmation api failed", e);
       }
   }
 
   const createTicket = async (subject: string, message: string) => {
     if(!user) return;
-    try { await api.createTicket({ userId: user.id, subject, message }); } catch(e) {}
+    
+    const tempId = `tkt-temp-${Date.now()}`;
     const newTicket: Ticket = {
-        id: `tkt-${Date.now()}`,
+        id: tempId,
         userId: user.id,
         subject,
         messages: [{ sender: 'USER', text: message, timestamp: new Date().toLocaleTimeString(), read: false }],
@@ -369,25 +345,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         date: new Date().toISOString().split('T')[0]
     }
     setTickets(prev => [newTicket, ...prev]);
-    sendTelegramNotification(`<b>🎫 Новый тикет</b>\nUser: ${user.name}\nSubject: ${subject}`);
+    
+    try {
+        const res = await api.createTicket({ userId: user.id, subject, message });
+        setTickets(prev => prev.map(t => t.id === tempId ? { ...t, id: res.ticketId } : t));
+        sendTelegramNotification(`<b>🎫 Новый тикет</b>\nUser: ${user.name}\nSubject: ${subject}`);
+    } catch (e) {
+        console.error("Create Ticket failed", e);
+        setTickets(prev => prev.filter(t => t.id !== tempId));
+    }
   }
 
-  const adminInitiateChat = (userId: string, orderId: string) => {
-    const newTicket: Ticket = {
-        id: `tkt-${Date.now()}`,
-        userId: userId,
-        subject: `Order Issue #${orderId}`,
-        messages: [{ sender: 'ADMIN', text: `Hello. Issues with order #${orderId}.`, timestamp: new Date().toLocaleTimeString(), read: false }],
-        status: TicketStatus.OPEN,
-        date: new Date().toISOString().split('T')[0]
-    }
-    setTickets(prev => [newTicket, ...prev]);
-  }
+  const adminInitiateChat = (userId: string, orderId: string) => { }
 
   const replyToTicket = async (ticketId: string, message: string) => {
     if (!user) return;
-    try { await api.replyTicket(ticketId, 'USER', message); } catch(e) {}
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: t.status === TicketStatus.RESOLVED ? t.status : TicketStatus.OPEN, messages: [...t.messages, { sender: 'USER', text: message, timestamp: new Date().toLocaleTimeString(), read: false }] } : t));
+    api.replyTicket(ticketId, 'USER', message).catch(() => {});
   }
 
   const markTicketAsRead = (ticketId: string) => {
@@ -396,49 +370,81 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, messages: t.messages.map(m => m.sender === targetSender ? { ...m, read: true } : m) } : t));
   }
 
-  const deleteTicket = (ticketId: string) => { setTickets(prev => prev.filter(t => t.id !== ticketId)); }
+  const deleteTicket = (ticketId: string) => { 
+      setTickets(prev => prev.filter(t => t.id !== ticketId)); 
+  }
+  
   const closeTicket = async (ticketId: string, byAdmin: boolean = false) => {
-    try { await api.updateTicketStatus(ticketId, TicketStatus.RESOLVED); } catch(e) {}
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: TicketStatus.RESOLVED, messages: [...t.messages, { sender: byAdmin ? 'ADMIN' : 'USER', text: 'Chat Closed.', timestamp: new Date().toLocaleTimeString(), read: true }] } : t));
+    api.updateTicketStatus(ticketId, TicketStatus.RESOLVED).catch(() => {});
   }
 
-  // Admin Actions
-  const addProduct = async (product: Product) => { try { await api.addProduct(product); setProducts(prev => [...prev, product]); } catch (e) { setProducts(prev => [...prev, product]); } }
-  const updateProduct = async (product: Product) => { try { await api.updateProduct(product); setProducts(prev => prev.map(p => p.id === product.id ? product : p)); } catch (e) { setProducts(prev => prev.map(p => p.id === product.id ? product : p)); } }
-  const deleteProduct = async (id: string) => { try { await api.deleteProduct(id); setProducts(prev => prev.filter(p => p.id !== id)); } catch (e) { setProducts(prev => prev.filter(p => p.id !== id)); } }
+  const addProduct = (product: Product) => { 
+      setProducts(prev => [...prev, product]); 
+      api.addProduct(product).catch(() => setProducts(prev => prev.filter(p => p.id !== product.id)));
+  }
+  
+  const updateProduct = (product: Product) => { 
+      setProducts(prev => prev.map(p => p.id === product.id ? product : p)); 
+      api.updateProduct(product).catch(() => {});
+  }
+  
+  const deleteProduct = (id: string) => { 
+      setProducts(prev => prev.filter(p => p.id !== id)); 
+      api.deleteProduct(id).catch(() => {});
+  }
 
-  const addServiceOffering = (service: ServiceOffering) => { setServiceOfferings(prev => [...prev, service]); }
-  const updateServiceOffering = (service: ServiceOffering) => { setServiceOfferings(prev => prev.map(s => s.id === service.id ? service : s)); }
-  const deleteServiceOffering = (id: string) => { setServiceOfferings(prev => prev.filter(s => s.id !== id)); }
+  const addServiceOffering = (service: ServiceOffering) => { 
+      setServiceOfferings(prev => [...prev, service]); 
+  }
+  
+  const updateServiceOffering = (service: ServiceOffering) => { 
+      setServiceOfferings(prev => prev.map(s => s.id === service.id ? service : s)); 
+  }
+  
+  const deleteServiceOffering = (id: string) => { 
+      setServiceOfferings(prev => prev.filter(s => s.id !== id)); 
+  }
 
-  const addResource = (resource: ResourceItem) => { setResources(prev => [...prev, resource]); }
-  const updateResource = (resource: ResourceItem) => { setResources(prev => prev.map(r => r.id === resource.id ? resource : r)); }
-  const deleteResource = (id: string) => { setResources(prev => prev.filter(r => r.id !== id)); }
+  const addResource = (resource: ResourceItem) => { 
+      setResources(prev => [...prev, resource]); 
+  }
+  
+  const updateResource = (resource: ResourceItem) => { 
+      setResources(prev => prev.map(r => r.id === resource.id ? resource : r)); 
+  }
+  
+  const deleteResource = (id: string) => { 
+      setResources(prev => prev.filter(r => r.id !== id)); 
+  }
 
   const submitServiceRequest = async (type: string, contact: string, details: string) => {
       if (!user) throw new Error("User not authenticated");
-      // Call Server
-      try {
-          await api.submitServiceRequest({ userId: user.id, serviceType: type, contact, details });
-      } catch (e) { console.error(e); }
       
-      const newRequest: ServiceRequest = { id: `srv-${Date.now()}`, userId: user.id, contact, serviceType: type, comment: details, status: 'NEW', date: new Date().toISOString().split('T')[0], reviewed: false };
-      setServiceRequests(prev => [newRequest, ...prev]);
-      sendTelegramNotification(`<b>🛠️ New Request</b>\nUser: ${user.name}\nService: ${type}\nContact: ${contact}`);
+      try {
+          const res = await api.submitServiceRequest({ userId: user.id, serviceType: type, contact, details });
+          const newRequest: ServiceRequest = { id: res.id, userId: user.id, contact, serviceType: type, comment: details, status: 'NEW', date: new Date().toISOString().split('T')[0], reviewed: false };
+          setServiceRequests(prev => [newRequest, ...prev]);
+          sendTelegramNotification(`<b>🛠️ New Request</b>\nUser: ${user.name}\nService: ${type}\nContact: ${contact}`);
+      } catch (e) {
+          console.error(e);
+      }
   };
 
-  const updateServiceRequestStatus = async (id: string, status: 'NEW' | 'IN_WORK' | 'COMPLETED') => { 
-      try { await api.updateServiceRequestStatus(id, status); } catch(e) {}
+  const updateServiceRequestStatus = (id: string, status: 'NEW' | 'IN_WORK' | 'COMPLETED') => { 
       setServiceRequests(prev => prev.map(req => req.id === id ? { ...req, status } : req)); 
+      api.updateServiceRequestStatus(id, status).catch(() => {});
   };
-  const deleteServiceRequest = (id: string) => { setServiceRequests(prev => prev.filter(req => req.id !== id)); };
+  
+  const deleteServiceRequest = (id: string) => { 
+      setServiceRequests(prev => prev.filter(req => req.id !== id)); 
+  };
 
   const addBonusItem = (item: Product) => { setBonusItems(prev => [...prev, item]); }
   const updateBonusItem = (item: Product) => { setBonusItems(prev => prev.map(b => b.id === item.id ? item : b)); }
   const deleteBonusItem = (id: string) => { setBonusItems(prev => prev.filter(b => b.id !== id)); if (bonusProductId === id) updateBonusProduct(null); }
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus, reason?: string) => {
-    try { await api.updateOrderStatus(orderId, status, reason); } catch(e) {}
+  const updateOrderStatus = (orderId: string, status: OrderStatus, reason?: string) => {
     setOrders(prevOrders => prevOrders.map(o => {
         if (o.id === orderId) {
             const updated = { ...o, status, rejectionReason: reason };
@@ -447,23 +453,35 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
         return o;
     }));
+    api.updateOrderStatus(orderId, status, reason).catch(() => {});
   };
 
   const closeSuccessNotification = () => { setSuccessNotification(null); }
-  const adminReply = async (ticketId: string, reply: string) => { 
-      try { await api.replyTicket(ticketId, 'ADMIN', reply); } catch(e) {}
+  
+  const adminReply = (ticketId: string, reply: string) => { 
       setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, messages: [...t.messages, { sender: 'ADMIN', text: reply, timestamp: new Date().toLocaleTimeString(), read: false }] } : t)); 
+      api.replyTicket(ticketId, 'ADMIN', reply).catch(() => {});
   };
-  const deleteUser = (userId: string) => { setAllUsers(prev => prev.filter(u => u.id !== userId)); if (user && user.id === userId) logout(); };
-  const adminUpdateUser = (userId: string, updates: Partial<User>) => { setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u)); if (user && user.id === userId) setUser({ ...user, ...updates }); };
-  const addReview = async (review: Review) => { 
-      try { await api.addReview(review); } catch(e) {}
+  
+  const deleteUser = (userId: string) => { 
+      setAllUsers(prev => prev.filter(u => u.id !== userId)); 
+      if (user && user.id === userId) logout(); 
+  };
+  
+  const adminUpdateUser = (userId: string, updates: Partial<User>) => { 
+      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u)); 
+      if (user && user.id === userId) setUser({ ...user, ...updates }); 
+  };
+  
+  const addReview = (review: Review) => { 
       setReviews(prev => [review, ...prev]); 
       setServiceRequests(prev => prev.map(req => req.id === review.productId ? { ...req, reviewed: true } : req)); 
+      api.addReview(review).catch(() => {});
   }
-  const deleteReview = async (id: string) => { 
-      try { await api.deleteReview(id); } catch(e) {}
+  
+  const deleteReview = (id: string) => { 
       setReviews(prev => prev.filter(r => r.id !== id)); 
+      api.deleteReview(id).catch(() => {});
   }
 
   return (
