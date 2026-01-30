@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ShoppingCart, User, Home, Box, Shield, LogOut, Menu, X, Globe, Terminal, CheckCircle, Gift, Star, Users, Clock, Database } from 'lucide-react';
+import { ShoppingCart, User, Home, Box, Shield, LogOut, Menu, X, Globe, Terminal, CheckCircle, Gift, Star, Users, Clock, Database, Mail, FileText, Scale } from 'lucide-react';
 import { OrderStatus } from '../types';
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
@@ -83,6 +82,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <NavItem to="/free" icon={Gift} label={language === 'RU' ? 'Free' : 'Free'} />
                     <NavItem to="/services" icon={Shield} label={language === 'RU' ? 'Услуги' : 'Services'} />
                     <NavItem to="/reviews" icon={Star} label={language === 'RU' ? 'Отзывы' : 'Reviews'} />
+                    <NavItem to="/contacts" icon={Mail} label={language === 'RU' ? 'Контакты' : 'Contacts'} />
                 </div>
 
                 {/* Right Actions */}
@@ -134,6 +134,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   <Link to="/" onClick={() => setMobileMenuOpen(false)} className="block text-2xl font-bold text-white">Home</Link>
                   <Link to="/shop" onClick={() => setMobileMenuOpen(false)} className="block text-2xl font-bold text-white">Shop</Link>
                   <Link to="/services" onClick={() => setMobileMenuOpen(false)} className="block text-2xl font-bold text-white">Services</Link>
+                  <Link to="/contacts" onClick={() => setMobileMenuOpen(false)} className="block text-2xl font-bold text-white">Contacts</Link>
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block text-2xl font-bold text-blue-400">Dashboard</Link>
               </div>
               <div className="mt-auto pt-8 border-t border-white/10">
@@ -152,14 +153,56 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-12 mt-20 bg-black">
-          <div className="max-w-[1600px] mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="flex items-center gap-2 opacity-50">
-                  <Terminal size={20} />
-                  <span className="font-bold tracking-wider">TECHHACKER</span>
-              </div>
-              <div className="text-xs text-gray-600">© 2024 Inc. All rights reserved. System v3.0</div>
-          </div>
+      <footer className="border-t border-white/5 bg-black pt-16 pb-8 mt-20">
+        <div className="max-w-[1600px] mx-auto px-4 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-white">
+                        <Terminal size={24} />
+                        <span className="font-bold tracking-wider text-xl">TECHHACKER</span>
+                    </div>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                        {language === 'RU' 
+                            ? 'Премиальные цифровые активы и инструменты автоматизации для профессионалов.'
+                            : 'Premium digital assets and automation tools for professionals.'}
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 className="font-bold text-white mb-6">{language === 'RU' ? 'Платформа' : 'Platform'}</h4>
+                    <ul className="space-y-4 text-sm text-gray-500">
+                        <li><Link to="/shop" className="hover:text-cyber-primary transition-colors">{language === 'RU' ? 'Магазин' : 'Shop'}</Link></li>
+                        <li><Link to="/services" className="hover:text-cyber-primary transition-colors">{language === 'RU' ? 'Услуги' : 'Services'}</Link></li>
+                        <li><Link to="/free" className="hover:text-cyber-primary transition-colors">{language === 'RU' ? 'Бесплатно' : 'Free Resources'}</Link></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 className="font-bold text-white mb-6">{language === 'RU' ? 'Поддержка' : 'Support'}</h4>
+                    <ul className="space-y-4 text-sm text-gray-500">
+                        <li><Link to="/contacts" className="hover:text-cyber-primary transition-colors">{language === 'RU' ? 'Контакты' : 'Contact Us'}</Link></li>
+                        <li><Link to="/reviews" className="hover:text-cyber-primary transition-colors">{language === 'RU' ? 'Отзывы' : 'Reviews'}</Link></li>
+                        <li><Link to="/dashboard" className="hover:text-cyber-primary transition-colors">{language === 'RU' ? 'Личный кабинет' : 'Dashboard'}</Link></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 className="font-bold text-white mb-6">{language === 'RU' ? 'Юридическая информация' : 'Legal'}</h4>
+                    <ul className="space-y-4 text-sm text-gray-500">
+                        <li><Link to="/privacy" className="hover:text-cyber-primary transition-colors flex items-center gap-2"><FileText size={14}/> {language === 'RU' ? 'Политика конфиденциальности' : 'Privacy Policy'}</Link></li>
+                        <li><Link to="/terms" className="hover:text-cyber-primary transition-colors flex items-center gap-2"><Scale size={14}/> {language === 'RU' ? 'Условия использования' : 'Terms of Use'}</Link></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-600">
+                <p>© 2024 TechHacker Inc. All rights reserved.</p>
+                <div className="flex gap-4">
+                    <span>System v3.0</span>
+                    <span>Secure Connection</span>
+                </div>
+            </div>
+        </div>
       </footer>
 
       {/* Notifications Overlay */}
