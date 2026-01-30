@@ -27,7 +27,6 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [widgetKey, setWidgetKey] = useState(0); 
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Avatar Selection State
@@ -84,7 +83,7 @@ export const Login = () => {
     container.appendChild(script);
     
     return () => {}
-  }, [telegramSettings.botUsername, login, navigate, widgetKey]);
+  }, [telegramSettings.botUsername, login, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,6 +172,11 @@ export const Login = () => {
                 <p className="text-gray-500 text-xs mt-2">
                     {language === 'RU' ? 'Введите идентификатор для входа в систему' : 'Enter credentials to access the system'}
                 </p>
+                <div className="mt-4 flex justify-center">
+                    <span className="px-3 py-1 rounded-full bg-cyber-primary/10 border border-cyber-primary/20 text-[10px] font-bold text-cyber-primary animate-pulse">
+                        SYSTEM v2.8.3 ONLINE
+                    </span>
+                </div>
             </div>
             
             {showForgotPass ? (
@@ -276,6 +280,8 @@ export const Login = () => {
                         <UserIcon size={18} className="absolute left-4 top-4 text-gray-500 group-focus-within:text-cyber-primary transition-colors" />
                         <input
                             type="text"
+                            name="username"
+                            autoComplete="username"
                             placeholder={language === 'RU' ? 'Имя пользователя' : 'Username'}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -290,6 +296,8 @@ export const Login = () => {
                         <Mail size={18} className="absolute left-4 top-4 text-gray-500 group-focus-within:text-cyber-primary transition-colors" />
                         <input
                         type="email"
+                        name="email"
+                        autoComplete="email"
                         placeholder={language === 'RU' ? 'Email адрес' : 'Email Address'}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -304,6 +312,8 @@ export const Login = () => {
                             <Lock size={18} className="absolute left-4 top-4 text-gray-500 group-focus-within:text-cyber-primary transition-colors" />
                             <input
                             type="password"
+                            name="password"
+                            autoComplete={isRegister ? "new-password" : "current-password"}
                             placeholder={language === 'RU' ? 'Пароль' : 'Password'}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -329,6 +339,8 @@ export const Login = () => {
                         <Lock size={18} className="absolute left-4 top-4 text-gray-500 group-focus-within:text-cyber-primary transition-colors" />
                         <input
                             type="password"
+                            name="confirmPassword"
+                            autoComplete="new-password"
                             placeholder={language === 'RU' ? 'Подтверждение пароля' : 'Confirm Password'}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
