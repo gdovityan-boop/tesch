@@ -2,7 +2,7 @@
 {
   "name": "techhacker-platform",
   "private": true,
-  "version": "2.8.3",
+  "version": "2.8.4",
   "type": "module",
   "main": "server.js",
   "scripts": {

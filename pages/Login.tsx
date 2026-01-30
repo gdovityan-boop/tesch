@@ -173,8 +173,8 @@ export const Login = () => {
                     {language === 'RU' ? 'Введите идентификатор для входа в систему' : 'Enter credentials to access the system'}
                 </p>
                 <div className="mt-4 flex justify-center">
-                    <span className="px-3 py-1 rounded-full bg-cyber-primary/10 border border-cyber-primary/20 text-[10px] font-bold text-cyber-primary animate-pulse">
-                        SYSTEM v2.8.3 ONLINE
+                    <span className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] font-bold text-green-400 animate-pulse">
+                        SYSTEM v2.8.4 ONLINE
                     </span>
                 </div>
             </div>
