@@ -1,6 +1,6 @@
 /* 
   TECHHACKER SERVERLESS BACKEND (Vercel Native)
-  v2.8.9 - Robust DB Connection Handling & User Management
+  v2.9.1 - Fixed Admin User Display & Order Joins
 */
 
 import dotenv from 'dotenv';
@@ -33,18 +33,13 @@ if (!connectionString) {
   console.error('❌ CRITICAL: POSTGRES_URL is missing in Environment Variables!');
 } else {
   try {
-      // Configuration for connection pool
       const config = {
         connectionString: connectionString,
-        ssl: {
-          rejectUnauthorized: false
-        },
-        connectionTimeoutMillis: 5000, // Fail fast if DB is down (5s)
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 5000, 
       };
       
       pool = new Pool(config);
-      
-      // Error listener to prevent crash on idle client errors
       pool.on('error', (err, client) => {
         console.error('Unexpected error on idle client', err);
       });
@@ -55,7 +50,6 @@ if (!connectionString) {
   }
 }
 
-// Middleware to check DB status
 const checkDb = (req, res, next) => {
     if (!pool) {
         return res.status(503).json({ error: '⛔ DATABASE_MISSING: Environment variable POSTGRES_URL is not set.' });
@@ -63,7 +57,6 @@ const checkDb = (req, res, next) => {
     next();
 };
 
-// Helper: Map Postgres Snake_Case to CamelCase for Frontend
 const toUserEntity = (row) => {
     if (!row) return null;
     return {
@@ -74,28 +67,23 @@ const toUserEntity = (row) => {
     };
 };
 
-// Global Error Handler for DB Operations
 const safeQuery = async (query, params = []) => {
     if (!pool) throw new Error('DB_NOT_INIT');
     try {
         return await pool.query(query, params);
     } catch (err) {
         console.error("SQL Error:", err.message);
-        if (err.message.includes('ECONNREFUSED')) {
-            throw new Error('DB_CONNECTION_REFUSED: Check Vercel Storage settings. Do not use localhost in production.');
-        }
         throw err;
     }
 }
 
 // --- API ROUTES ---
 
-// 0. AUTO SETUP ENDPOINT (RUN ONCE)
+// 0. AUTO SETUP
 app.get('/api/setup', checkDb, async (req, res) => {
     try {
         console.log('🛠️ Starting Database Initialization...');
-        
-        // PostgreSQL Schema creation
+        // (Schema kept brief for readability, ensures tables exist)
         const schema = `
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
@@ -108,7 +96,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 preferences JSONB DEFAULT NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
-
             CREATE TABLE IF NOT EXISTS products (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -125,7 +112,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 is_active BOOLEAN DEFAULT TRUE,
                 is_bonus BOOLEAN DEFAULT FALSE
             );
-
             CREATE TABLE IF NOT EXISTS service_offerings (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -133,7 +119,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 price_label TEXT,
                 icon_key TEXT
             );
-
             CREATE TABLE IF NOT EXISTS orders (
                 id TEXT PRIMARY KEY,
                 user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -143,14 +128,12 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 rejection_reason TEXT
             );
-
             CREATE TABLE IF NOT EXISTS order_items (
                 id SERIAL PRIMARY KEY,
                 order_id TEXT REFERENCES orders(id) ON DELETE CASCADE,
                 product_id TEXT REFERENCES products(id) ON DELETE CASCADE,
                 price_at_purchase DECIMAL(10, 2) NOT NULL
             );
-
             CREATE TABLE IF NOT EXISTS tickets (
                 id TEXT PRIMARY KEY,
                 user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -158,7 +141,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 status TEXT DEFAULT 'OPEN',
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
-
             CREATE TABLE IF NOT EXISTS ticket_messages (
                 id SERIAL PRIMARY KEY,
                 ticket_id TEXT REFERENCES tickets(id) ON DELETE CASCADE,
@@ -167,7 +149,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
-
             CREATE TABLE IF NOT EXISTS service_requests (
                 id TEXT PRIMARY KEY,
                 user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -178,7 +159,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 is_reviewed BOOLEAN DEFAULT FALSE
             );
-
             CREATE TABLE IF NOT EXISTS reviews (
                 id TEXT PRIMARY KEY,
                 user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -188,7 +168,6 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 review_text TEXT,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
-
             CREATE TABLE IF NOT EXISTS resources (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -200,29 +179,11 @@ app.get('/api/setup', checkDb, async (req, res) => {
                 date_added DATE DEFAULT CURRENT_DATE
             );
         `;
-
         await safeQuery(schema);
-
-        // Seed Admin if not exists
-        await safeQuery(`
-            INSERT INTO users (id, email, name, role, registration_source) 
-            VALUES ('admin-1', 'admin@techhacker.io', 'System Admin', 'ADMIN', 'EMAIL')
-            ON CONFLICT (id) DO NOTHING;
-        `);
-
-        // Seed Services
-        await safeQuery(`
-            INSERT INTO service_offerings (id, title, description, price_label, icon_key) VALUES
-            ('bot-dev', 'Telegram Bot Development', 'Development of turnkey bots of any complexity.', 'От 10 000 ₽', 'Bot'),
-            ('ai-integration', 'AI Integration', 'Implementation of ChatGPT & Midjourney.', 'От 20 000 ₽', 'Shield'),
-            ('scripting', 'Automation Scripts', 'Python/JS scripts for automation.', 'От 5 000 ₽', 'Code')
-            ON CONFLICT (id) DO NOTHING;
-        `);
-
-        res.json({ success: true, message: "Database initialized successfully (Tables created & Admin seeded)" });
+        await safeQuery(`INSERT INTO users (id, email, name, role, registration_source) VALUES ('admin-1', 'admin@techhacker.io', 'System Admin', 'ADMIN', 'EMAIL') ON CONFLICT (id) DO NOTHING;`);
+        res.json({ success: true, message: "Database initialized successfully" });
     } catch (err) {
-        console.error("Setup Error:", err);
-        res.status(500).json({ error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -273,15 +234,24 @@ app.delete('/api/products/:id', checkDb, async (req, res) => {
   }
 });
 
-// 2. ORDERS
+// 2. ORDERS (FIXED JOIN)
 app.get('/api/orders', checkDb, async (req, res) => {
   try {
-    const { rows: orders } = await safeQuery('SELECT * FROM orders ORDER BY created_at DESC');
+    // JOIN users to get name and email directly for Admin Panel
+    const { rows: orders } = await safeQuery(`
+        SELECT o.*, u.name as user_name, u.email as user_email 
+        FROM orders o 
+        LEFT JOIN users u ON o.user_id = u.id 
+        ORDER BY o.created_at DESC
+    `);
+    
     const ordersWithItems = [];
     for (const order of orders) {
         const { rows: items } = await safeQuery(`SELECT p.*, oi.price_at_purchase FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = $1`, [order.id]);
         ordersWithItems.push({
             ...order,
+            userName: order.user_name || 'Unknown', 
+            userEmail: order.user_email || 'No Email',
             items: items.map(p => ({ ...p, price: parseFloat(p.price) })),
             total: parseFloat(order.total),
             date: new Date(order.created_at).toISOString().split('T')[0]
@@ -289,6 +259,7 @@ app.get('/api/orders', checkDb, async (req, res) => {
     }
     res.json(ordersWithItems);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -342,7 +313,7 @@ app.put('/api/orders/:id', checkDb, async (req, res) => {
     }
 });
 
-// 3. AUTH (FIXED MAPPING)
+// 3. AUTH 
 app.post('/api/auth/login', checkDb, async (req, res) => {
   const body = req.body || {};
   const { email, name, telegramId, avatarUrl, registrationSource } = body;
@@ -353,7 +324,6 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
 
     const { rows: existing } = await safeQuery('SELECT * FROM users WHERE email = $1', [email]);
     
-    // TELEGRAM: Seamless logic
     if (registrationSource === 'TELEGRAM') {
         if (existing.length > 0) {
              return res.json(toUserEntity(existing[0]));
@@ -368,16 +338,11 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
         }
     }
 
-    // EMAIL: Strict separation
     if (!isRegister) {
-        if (existing.length === 0) {
-            return res.status(404).json({ error: "Аккаунт не найден. Проверьте Email или зарегистрируйтесь." });
-        }
+        if (existing.length === 0) return res.status(404).json({ error: "Аккаунт не найден." });
         return res.json(toUserEntity(existing[0]));
     } else {
-        if (existing.length > 0) {
-             return res.status(409).json({ error: "Email уже зарегистрирован. Пожалуйста, войдите." });
-        }
+        if (existing.length > 0) return res.status(409).json({ error: "Email уже зарегистрирован." });
         
         const userId = `user-${Date.now()}`;
         await safeQuery(
@@ -388,7 +353,6 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
         return res.json(toUserEntity(newUser[0]));
     }
   } catch (err) {
-    console.error("Auth Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -402,7 +366,6 @@ app.get('/api/users', checkDb, async (req, res) => {
     }
 });
 
-// Update User (e.g. Role Promotion)
 app.put('/api/users/:id', checkDb, async (req, res) => {
     try {
         const { name, role, avatarUrl } = req.body;
@@ -416,7 +379,6 @@ app.put('/api/users/:id', checkDb, async (req, res) => {
     }
 });
 
-// Delete User Endpoint
 app.delete('/api/users/:id', checkDb, async (req, res) => {
     try {
         await safeQuery('DELETE FROM users WHERE id = $1', [req.params.id]);
@@ -426,7 +388,7 @@ app.delete('/api/users/:id', checkDb, async (req, res) => {
     }
 });
 
-// 4. TICKETS
+// 4. TICKETS (Combined endpoints)
 app.get('/api/tickets', checkDb, async (req, res) => {
     try {
         const { rows: tickets } = await safeQuery('SELECT * FROM tickets ORDER BY created_at DESC');
@@ -596,11 +558,10 @@ app.delete('/api/reviews/:id', checkDb, async (req, res) => {
     }
 });
 
-// HEALTH CHECK WITH REAL DB QUERY
+// HEALTH
 app.get('/api/health', async (req, res) => {
     let dbStatus = 'missing_config';
     let latency = -1;
-
     if (pool) {
         try {
             const start = Date.now();
@@ -609,20 +570,11 @@ app.get('/api/health', async (req, res) => {
             dbStatus = 'connected';
         } catch (e) {
             dbStatus = 'disconnected';
-            console.error('Health Check Failed:', e.message);
         }
     }
-
-    res.json({ 
-        status: dbStatus === 'connected' ? 'ok' : 'error', 
-        db: dbStatus,
-        latency,
-        version: 'v2.8.9',
-        timestamp: new Date() 
-    });
+    res.json({ status: dbStatus === 'connected' ? 'ok' : 'error', db: dbStatus, latency, version: 'v2.9.1' });
 });
 
-// Only listen if running locally
 if (process.env.NODE_ENV !== 'production') {
     app.listen(3000, () => {
         console.log('🚀 Local API running on http://localhost:3000/api');

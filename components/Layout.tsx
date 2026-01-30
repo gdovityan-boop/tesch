@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ShoppingCart, User, Home, Box, Shield, LogOut, Menu, X, Globe, Terminal, CheckCircle, Gift, Star, Users, Clock, Database, Mail, FileText, Scale } from 'lucide-react';
+import { ShoppingCart, User, Home, Box, Shield, LogOut, Menu, X, Globe, Terminal, CheckCircle, Gift, Star, Users, Clock, Database, Mail, FileText, Scale, Loader, MessageSquare, ShoppingBag } from 'lucide-react';
 import { OrderStatus } from '../types';
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
@@ -205,23 +205,67 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </footer>
 
-      {/* Notifications Overlay */}
+      {/* CENTRAL NOTIFICATION MODAL (FIXED Z-INDEX) */}
       {successNotification && (
-          <div className="fixed bottom-8 right-8 z-50 bg-white text-black p-6 rounded-xl shadow-2xl animate-slide-up flex flex-col gap-4 max-w-sm">
-              <div className="flex items-center gap-3">
-                  <CheckCircle className="text-green-600" size={24} />
-                  <div>
-                      <h4 className="font-bold text-lg">{language === 'RU' ? 'Успешно' : 'Success'}</h4>
-                      <p className="text-xs text-gray-600">
-                          {successNotification.status === OrderStatus.COMPLETED 
-                            ? (language === 'RU' ? 'Доступ к файлам открыт.' : 'Access granted.') 
-                            : (language === 'RU' ? 'Заказ на проверке.' : 'Order under review.')}
-                      </p>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col p-8 text-center">
+                  
+                  {/* Icon */}
+                  <div className="flex justify-center mb-6">
+                      {successNotification.status === OrderStatus.COMPLETED ? (
+                          <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+                              <CheckCircle size={40} className="text-green-500" />
+                          </div>
+                      ) : (
+                          <div className="w-20 h-20 bg-orange-500/10 rounded-full flex items-center justify-center border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
+                              <Clock size={40} className="text-orange-500 animate-pulse" />
+                          </div>
+                      )}
                   </div>
+
+                  {/* Title & Text */}
+                  <h3 className="text-2xl font-bold text-white mb-2">
+                      {successNotification.status === OrderStatus.COMPLETED 
+                          ? (language === 'RU' ? 'Оплата принята!' : 'Payment Success!')
+                          : (language === 'RU' ? 'Оплата на проверке' : 'Payment Under Review')}
+                  </h3>
+                  
+                  <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+                      {successNotification.status === OrderStatus.COMPLETED 
+                          ? (language === 'RU' ? 'Спасибо за покупку. Доступ к вашим товарам открыт в личном кабинете.' : 'Thank you for your purchase. Access to your items is now available in your dashboard.')
+                          : (language === 'RU' ? 'Администратор проверит поступление средств в ближайшее время. Ожидайте уведомления.' : 'Admin will verify the payment shortly. Please wait for notification.')}
+                  </p>
+
+                  {/* Buttons */}
+                  <div className="space-y-3">
+                      {successNotification.status === OrderStatus.COMPLETED ? (
+                          <>
+                              <button 
+                                  onClick={() => { closeSuccessNotification(); navigate('/dashboard', { state: { tab: 'library' } }); }} 
+                                  className="w-full bg-cyber-primary text-black font-bold py-3.5 rounded-xl hover:bg-cyan-400 transition-all flex items-center justify-center gap-2 shadow-lg"
+                              >
+                                  <Box size={18} />
+                                  {language === 'RU' ? 'Перейти в Мои Покупки' : 'Go to My Purchases'}
+                              </button>
+                              <button 
+                                  onClick={() => { closeSuccessNotification(); navigate('/reviews'); }} 
+                                  className="w-full bg-white/5 border border-white/10 text-white font-bold py-3.5 rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                              >
+                                  <Star size={18} />
+                                  {language === 'RU' ? 'Оставить отзыв' : 'Leave a Review'}
+                              </button>
+                          </>
+                      ) : (
+                          <button 
+                              onClick={() => { closeSuccessNotification(); navigate('/dashboard'); }} 
+                              className="w-full bg-white text-black font-bold py-3.5 rounded-xl hover:bg-gray-200 transition-all"
+                          >
+                              {language === 'RU' ? 'Перейти в кабинет' : 'Go to Dashboard'}
+                          </button>
+                      )}
+                  </div>
+
               </div>
-              <button onClick={() => { closeSuccessNotification(); navigate('/dashboard'); }} className="w-full bg-black text-white py-2 rounded-lg text-xs font-bold">
-                  {language === 'RU' ? 'В ЛИЧНЫЙ КАБИНЕТ' : 'GO TO DASHBOARD'}
-              </button>
           </div>
       )}
     </div>

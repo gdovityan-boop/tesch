@@ -98,6 +98,8 @@ export interface Review {
 export interface Order {
   id: string;
   userId: string;
+  userName?: string; // Added for Admin display
+  userEmail?: string; // Added for Admin display
   items: Product[];
   total: number;
   status: OrderStatus;
