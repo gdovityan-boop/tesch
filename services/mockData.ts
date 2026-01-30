@@ -2,32 +2,44 @@
 import { Product, ProductType, User, UserRole, OrderStatus, TicketStatus, Ticket, Order, ServiceRequest, Review, ServiceOffering } from '../types';
 
 // ==========================================
-// ⚙️ НАСТРОЙКИ ПРОЕКТА
+// ⚙️ НАСТРОЙКИ ПРОЕКТА (МЕНЯТЬ ЗДЕСЬ)
 // ==========================================
 
-export const WEB_APP_URL = 'https://tesch.vercel.app'; 
+// 1. ВАШ ДОМЕН
+// ⚠️ ВАЖНО: При загрузке на хостинг поменяйте это на реальный домен
+export const WEB_APP_URL = 'https://tesch.vercel.app'; // Production v3.5 Active
 
-// ⚠️ ВАЖНО: Впишите сюда Username бота (без @), которого вы создали в BotFather.
-// Если это поле не совпадает с токеном, виджет входа НЕ ПОЯВИТСЯ.
-export const TELEGRAM_BOT_USERNAME = 'ВАШ_БОТ_USERNAME'; // <-- ЗАМЕНИТЕ НА ИМЯ БОТА (например, MyShopBot)
+// 2. ЮЗЕРНЕЙМ ВАШЕГО БОТА (Без @)
+// ⚠️ ВАЖНО: Впишите сюда имя бота, который соответствует токену ниже! 
+// Если имена не совпадут, виджет входа не появится.
+export const TELEGRAM_BOT_USERNAME = 'ВАШ_ЮЗЕРНЕЙМ_БОТА'; // Например: MyTechShop_bot
 
+// 3. ID АДМИНА В TELEGRAM (Чтобы система узнала вас при входе)
+// Узнать свой ID можно в боте @userinfobot
 export const ADMIN_TELEGRAM_IDS = ['797164901'];
 
+// 4. ТОКЕН БОТА И ЧАТ ID (ДЛЯ УВЕДОМЛЕНИЙ)
 export const TELEGRAM_BOT_TOKEN = '8298017046:AAGU0kh-dkDeWDgWzxSYCJXjE0RDHdQPqNQ'; 
 export const TELEGRAM_ADMIN_CHAT_ID = '';
 
+// 5. 💰 ПЛАТЕЖНЫЕ РЕКВИЗИТЫ (МЕНЯТЬ ЗДЕСЬ)
 export const PAYMENT_REQUISITES = {
-    usdtTrc20Address: 'TJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    usdtBep20Address: '0xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    sbpPhoneNumber: '+7 (999) 123-45-67',
-    sbpBanks: 'Сбербанк, Тинькофф, ВТБ',
-    sbpRecipientName: 'Иван И.',
+    // КРИПТА (USDT)
+    usdtTrc20Address: 'TJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // <--- ВАШ КОШЕЛЕК TRC20
+    usdtBep20Address: '0xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', // <--- ВАШ КОШЕЛЕК BEP20 (BSC)
+    
+    // РУБЛИ (СБП)
+    sbpPhoneNumber: '+7 (999) 123-45-67', // <--- ВАШ НОМЕР ТЕЛЕФОНА
+    sbpBanks: 'Сбербанк, Тинькофф, ВТБ',   // <--- ВАШИ БАНКИ
+    sbpRecipientName: 'Иван И.',             // <--- ИМЯ ПОЛУЧАТЕЛЯ (Необязательно)
+
+    // Генератор QR кода (не трогать)
     getQrUrl: (address: string) => `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${address}`
 };
 
-export const USDT_RATE = 100;
+// 6. КУРС ВАЛЮТ
+export const USDT_RATE = 100; // 1 USDT = 100 RUB (Фиксированный курс для сайта)
 
-// ... (Остальные данные остаются без изменений, просто для краткости)
 // ==========================================
 // 📊 ДАННЫЕ ДЛЯ ГРАФИКОВ (ТЕСТОВЫЕ)
 // ==========================================
@@ -53,6 +65,8 @@ export const MOCK_ANALYTICS_DATA = {
     desktop: 28
   }
 };
+
+// ==========================================
 
 export const MOCK_PRODUCTS: Product[] = [
   {
@@ -142,6 +156,7 @@ export const MOCK_PRODUCTS: Product[] = [
   }
 ];
 
+// --- DEDICATED BONUS ITEMS (Not for sale, separate from Shop) ---
 export const MOCK_BONUS_ITEMS: Product[] = [
     {
         id: 'bonus-welcome-1',
@@ -159,6 +174,7 @@ export const MOCK_BONUS_ITEMS: Product[] = [
     }
 ];
 
+// --- SERVICE OFFERINGS ---
 export const MOCK_SERVICE_OFFERINGS: ServiceOffering[] = [
     { id: 'bot-dev', title: 'Telegram Bot Development', icon: 'Bot', price: 'От 10 000 ₽', description: 'Development of turnkey bots of any complexity. Integration with payments and AI.' },
     { id: 'ai-integration', title: 'AI Integration', icon: 'Shield', price: 'От 20 000 ₽', description: 'Implementation of ChatGPT, Midjourney, and Stable Diffusion into your business processes.' },
@@ -188,9 +204,117 @@ export const MOCK_USER: User = {
 export const MOCK_ALL_USERS: User[] = [
   MOCK_ADMIN,
   MOCK_USER,
+  {
+    id: 'user-2',
+    email: 'sarah@design.io',
+    name: 'Sarah Connor',
+    role: UserRole.USER,
+    avatarUrl: 'https://picsum.photos/100/100?random=12',
+    registrationSource: 'EMAIL'
+  },
+  {
+    id: 'user-3',
+    email: 'john@doe.com',
+    name: 'John Doe',
+    role: UserRole.USER,
+    avatarUrl: 'https://picsum.photos/100/100?random=13',
+    registrationSource: 'EMAIL'
+  }
 ];
 
-export const MOCK_ORDERS: Order[] = [];
-export const MOCK_TICKETS: Ticket[] = [];
-export const MOCK_SERVICE_REQUESTS: ServiceRequest[] = [];
-export const MOCK_REVIEWS: Review[] = [];
+export const MOCK_ORDERS: Order[] = [
+  {
+    id: 'ord-001',
+    userId: 'user-1',
+    items: [MOCK_PRODUCTS[0]],
+    total: 2990,
+    status: OrderStatus.COMPLETED,
+    date: '2023-10-25'
+  },
+  {
+    id: 'ord-002',
+    userId: 'user-2',
+    items: [MOCK_PRODUCTS[1], MOCK_PRODUCTS[3]],
+    total: 21480,
+    status: OrderStatus.PENDING,
+    date: '2023-10-27'
+  }
+];
+
+export const MOCK_TICKETS: Ticket[] = [
+  {
+    id: 'tkt-001',
+    userId: 'user-1',
+    subject: 'Access to course',
+    status: TicketStatus.OPEN,
+    date: '2023-10-26',
+    messages: [
+      { sender: 'USER', text: 'I cannot find the download link.', timestamp: '10:00 AM', read: true }
+    ]
+  },
+  {
+    id: 'tkt-002',
+    userId: 'user-2',
+    subject: 'Refund Request',
+    status: TicketStatus.RESOLVED,
+    date: '2023-10-24',
+    messages: [
+      { sender: 'USER', text: 'I bought the wrong item.', timestamp: '09:00 AM', read: true },
+      { sender: 'ADMIN', text: 'Refund processed.', timestamp: '09:30 AM', read: false }
+    ]
+  }
+];
+
+export const MOCK_SERVICE_REQUESTS: ServiceRequest[] = [
+  {
+    id: 'srv-001',
+    userId: 'user-1',
+    serviceType: 'Telegram Bot Development',
+    contact: '@alex_cyber',
+    comment: 'Need a shop bot with crypto payments.',
+    status: 'IN_WORK',
+    date: '2023-10-28'
+  },
+  {
+     id: 'srv-002',
+     userId: 'user-1',
+     serviceType: 'Consulting',
+     contact: 'alex@example.com',
+     comment: 'Audit my current AI architecture.',
+     status: 'NEW',
+     date: '2023-10-29'
+  }
+];
+
+export const MOCK_REVIEWS: Review[] = [
+    {
+        id: 'rev-1',
+        userId: 'user-3',
+        userName: 'Alex R.',
+        userAvatar: 'https://picsum.photos/100/100?random=11',
+        productName: 'Ultimate Midjourney Prompts v5',
+        rating: 5,
+        text: 'Prompts for Midjourney are just fire. Saved hours of work. / Промпты для Midjourney просто огонь. Сэкономил часы работы.',
+        date: '2023-10-20'
+    },
+    {
+        id: 'rev-2',
+        userId: 'user-2',
+        userName: 'Sarah K.',
+        userAvatar: 'https://picsum.photos/100/100?random=12',
+        productName: 'Python AI Course',
+        rating: 5,
+        text: 'Bought the Python AI course. Very structured and clear. / Купила курс по Python AI. Очень структурировано и понятно.',
+        date: '2023-10-22'
+    },
+    {
+        id: 'rev-3',
+        userId: 'user-4',
+        userName: 'Mike T.',
+        userAvatar: 'https://picsum.photos/100/100?random=14',
+        productName: 'Telegram Bot Dev',
+        rating: 4,
+        text: 'Ordered bot development. Done quickly and with high quality. / Заказывал разработку бота. Сделали быстро и качественно.',
+        date: '2023-10-25'
+    }
+];

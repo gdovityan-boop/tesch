@@ -69,7 +69,7 @@ const toUserEntity = (row) => {
     if (!row) return null;
     return {
         ...row,
-        avatarUrl: row.avatar_url, // Fix: Map avatar_url to avatarUrl
+        avatarUrl: row.avatar_url,
         telegramId: row.telegram_id,
         registrationSource: row.registration_source
     };
@@ -343,7 +343,7 @@ app.put('/api/orders/:id', checkDb, async (req, res) => {
     }
 });
 
-// 3. AUTH (FIXED MAPPING AND HANDLING)
+// 3. AUTH (FIXED MAPPING)
 app.post('/api/auth/login', checkDb, async (req, res) => {
   const body = req.body || {};
   const { email, name, telegramId, avatarUrl, registrationSource } = body;
@@ -357,7 +357,6 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
     // TELEGRAM: Seamless logic
     if (registrationSource === 'TELEGRAM') {
         if (existing.length > 0) {
-             // User exists, return with mapping
              return res.json(toUserEntity(existing[0]));
         } else {
              const userId = `user-${Date.now()}`;
