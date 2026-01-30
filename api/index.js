@@ -159,7 +159,7 @@ app.put('/api/orders/:id', async (req, res) => {
     }
 });
 
-// 3. AUTH (FORCE UPDATE CHECK)
+// 3. AUTH (FORCE UPDATE v2.8.2)
 app.post('/api/auth/login', async (req, res) => {
   const body = req.body || {};
   const { email, name, telegramId, avatarUrl, registrationSource } = body;
@@ -167,7 +167,7 @@ app.post('/api/auth/login', async (req, res) => {
   // Explicitly check for boolean or string 'true'
   const isRegister = body.isRegister === true || body.isRegister === 'true';
 
-  console.log(`[AUTH v2.8.1] Attempt: ${email} | Mode: ${isRegister ? 'REGISTER' : 'LOGIN'}`);
+  console.log(`[AUTH v2.8.2] Attempt: ${email} | Mode: ${isRegister ? 'REGISTER' : 'LOGIN'}`);
 
   try {
     if (!email) throw new Error("Email is required");
@@ -193,15 +193,15 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isRegister) {
         // Mode: LOGIN
         if (existing.length === 0) {
-            // [UPDATED ERROR MESSAGE TO CONFIRM DEPLOYMENT]
-            return res.status(404).json({ error: "⛔ [v2.8.1] Аккаунт не найден. Пожалуйста, переключитесь на вкладку 'Регистрация'." });
+            // [UPDATED ERROR MESSAGE FOR v2.8.2]
+            return res.status(404).json({ error: "⛔ [v2.8.2] Аккаунт не найден. Пожалуйста, переключитесь на вкладку 'Регистрация'." });
         }
         return res.json(existing[0]);
     } else {
         // Mode: REGISTER
         if (existing.length > 0) {
-             // [UPDATED ERROR MESSAGE TO CONFIRM DEPLOYMENT]
-             return res.status(409).json({ error: "⛔ [v2.8.1] Email уже занят. Пожалуйста, переключитесь на вкладку 'Вход'." });
+             // [UPDATED ERROR MESSAGE FOR v2.8.2]
+             return res.status(409).json({ error: "⛔ [v2.8.2] Email уже занят. Пожалуйста, переключитесь на вкладку 'Вход'." });
         }
         
         const userId = `user-${Date.now()}`;
@@ -398,7 +398,7 @@ app.delete('/api/reviews/:id', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date(), server: 'Vercel Serverless Function v2.8.1' });
+    res.json({ status: 'ok', timestamp: new Date(), server: 'Vercel Serverless Function v2.8.2' });
 });
 
 // Only listen if running locally
