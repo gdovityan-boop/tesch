@@ -158,7 +158,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   <Terminal size={20} />
                   <span className="font-bold tracking-wider">TECHHACKER</span>
               </div>
-              <div className="text-xs text-gray-600">© 2024 Inc. All rights reserved. System v2.8.8</div>
+              <div className="text-xs text-gray-600">© 2024 Inc. All rights reserved. System v3.0</div>
           </div>
       </footer>
 

@@ -7,7 +7,7 @@ import { Product, ProductType, User, UserRole, OrderStatus, TicketStatus, Ticket
 
 // 1. ВАШ ДОМЕН
 // ⚠️ ВАЖНО: При загрузке на хостинг поменяйте это на реальный домен
-export const WEB_APP_URL = 'https://tesch.vercel.app'; // Production v3.5 Active
+export const WEB_APP_URL = 'https://tesch.vercel.app'; // Production v3.0 Active
 
 // 2. ЮЗЕРНЕЙМ ВАШЕГО БОТА (Без @)
 // ⚠️ ВАЖНО: Впишите сюда имя бота, который соответствует токену ниже! 
