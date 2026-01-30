@@ -9,8 +9,6 @@ import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -161,26 +159,49 @@ app.put('/api/orders/:id', async (req, res) => {
     }
 });
 
-// 3. AUTH
+// 3. AUTH (FORCE UPDATE CHECK)
 app.post('/api/auth/login', async (req, res) => {
-  const { email, name, telegramId, avatarUrl, registrationSource, isRegister } = req.body;
+  const body = req.body || {};
+  const { email, name, telegramId, avatarUrl, registrationSource } = body;
+  
+  // Explicitly check for boolean or string 'true'
+  const isRegister = body.isRegister === true || body.isRegister === 'true';
+
+  console.log(`[AUTH v2.8.1] Attempt: ${email} | Mode: ${isRegister ? 'REGISTER' : 'LOGIN'}`);
+
   try {
-    // Basic validation
     if (!email) throw new Error("Email is required");
 
     const { rows: existing } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
-    // STRICT LOGIN LOGIC
+    // TELEGRAM: Seamless logic
+    if (registrationSource === 'TELEGRAM') {
+        if (existing.length > 0) {
+             return res.json(existing[0]);
+        } else {
+             const userId = `user-${Date.now()}`;
+             await pool.query(
+                'INSERT INTO users (id, email, name, role, avatar_url, telegram_id, registration_source) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
+             );
+             const { rows: newUser } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+             return res.json(newUser[0]);
+        }
+    }
+
+    // EMAIL: Strict separation
     if (!isRegister) {
-        // Attempting to login
+        // Mode: LOGIN
         if (existing.length === 0) {
-            return res.status(404).json({ error: "Пользователь не найден. Пожалуйста, зарегистрируйтесь. / User not found. Please register." });
+            // [UPDATED ERROR MESSAGE TO CONFIRM DEPLOYMENT]
+            return res.status(404).json({ error: "⛔ [v2.8.1] Аккаунт не найден. Пожалуйста, переключитесь на вкладку 'Регистрация'." });
         }
         return res.json(existing[0]);
     } else {
-        // Attempting to register
+        // Mode: REGISTER
         if (existing.length > 0) {
-             return res.status(409).json({ error: "Пользователь уже существует. Пожалуйста, войдите. / User already exists. Please login." });
+             // [UPDATED ERROR MESSAGE TO CONFIRM DEPLOYMENT]
+             return res.status(409).json({ error: "⛔ [v2.8.1] Email уже занят. Пожалуйста, переключитесь на вкладку 'Вход'." });
         }
         
         const userId = `user-${Date.now()}`;
@@ -377,7 +398,7 @@ app.delete('/api/reviews/:id', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date(), server: 'Vercel Serverless Function' });
+    res.json({ status: 'ok', timestamp: new Date(), server: 'Vercel Serverless Function v2.8.1' });
 });
 
 // Only listen if running locally
