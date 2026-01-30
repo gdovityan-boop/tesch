@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { UserRole } from '../types';
-import { Terminal, Mail, Lock, User as UserIcon, LogIn, Loader, Info, CheckCircle, ArrowLeft, Check, HelpCircle, ChevronRight, Server, WifiOff } from 'lucide-react';
+import { Terminal, Mail, Lock, User as UserIcon, LogIn, Loader, Info, CheckCircle, ArrowLeft, Check, HelpCircle, ChevronRight, Server, WifiOff, RefreshCw, AlertTriangle, Database } from 'lucide-react';
 import { ADMIN_TELEGRAM_IDS } from '../services/mockData';
 import { authService } from '../services/authService';
 
@@ -28,6 +28,7 @@ export const Login = () => {
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // Avatar Selection State
   const [selectedAvatar, setSelectedAvatar] = useState(DEFAULT_AVATARS[0]);
@@ -37,18 +38,27 @@ export const Login = () => {
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   // Health Check State
-  const [apiStatus, setApiStatus] = useState<'CHECKING' | 'ONLINE' | 'OFFLINE'>('CHECKING');
+  const [apiStatus, setApiStatus] = useState<'CHECKING' | 'ONLINE' | 'OFFLINE' | 'DB_ERROR'>('CHECKING');
 
-  useEffect(() => {
-      const checkApi = async () => {
-          try {
-              const res = await fetch('/api/health');
-              if (res.ok) setApiStatus('ONLINE');
-              else setApiStatus('OFFLINE');
-          } catch (e) {
+  const checkApi = async () => {
+      setApiStatus('CHECKING');
+      try {
+          const res = await fetch('/api/health');
+          const data = await res.json().catch(() => ({}));
+          
+          if (res.ok && data.status === 'ok') {
+              setApiStatus('ONLINE');
+          } else if (data.db === 'disconnected' || data.db === 'missing_config') {
+              setApiStatus('DB_ERROR');
+          } else {
               setApiStatus('OFFLINE');
           }
-      };
+      } catch (e) {
+          setApiStatus('OFFLINE');
+      }
+  };
+
+  useEffect(() => {
       checkApi();
   }, []);
 
@@ -104,15 +114,16 @@ export const Login = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setAuthError(null);
     
     if (isRegister) {
       if (password !== confirmPassword) {
-        alert(language === 'RU' ? 'Пароли не совпадают!' : 'Passwords do not match!');
+        setAuthError(language === 'RU' ? 'Пароли не совпадают!' : 'Passwords do not match!');
         setIsProcessing(false);
         return;
       }
       if (!name) {
-        alert(language === 'RU' ? 'Введите имя!' : 'Please enter your name!');
+        setAuthError(language === 'RU' ? 'Введите имя!' : 'Please enter your name!');
         setIsProcessing(false);
         return;
       }
@@ -124,8 +135,12 @@ export const Login = () => {
     try {
         await login(email, role, finalName, undefined, isRegister ? selectedAvatar : undefined, isRegister);
         navigate('/dashboard');
-    } catch (e) {
-        // Error handled in AppContext, just stop spinner
+    } catch (e: any) {
+        if (e.message?.includes('DB_CONNECTION_REFUSED') || e.message?.includes('DATABASE_MISSING')) {
+            setAuthError('CRITICAL: Vercel Postgres is not connected. Go to Vercel -> Storage -> Create Database.');
+        } else {
+            setAuthError(e.message || 'Unknown Error');
+        }
     } finally {
         setIsProcessing(false);
     }
@@ -143,12 +158,12 @@ export const Login = () => {
               const result = await authService.sendPasswordReset(foundUser);
               setResetSuccess(result.message);
           } catch (error) {
-              alert('Error sending reset link');
+              setAuthError('Error sending reset link');
           } finally {
               setIsResetting(false);
           }
       } else {
-          alert(language === 'RU' 
+          setAuthError(language === 'RU' 
             ? 'Пользователь с таким Email или именем не найден.' 
             : 'User with this Email or username not found.');
       }
@@ -190,20 +205,46 @@ export const Login = () => {
                 </p>
                 
                 <div className="mt-4 flex flex-col items-center gap-2">
-                    <span className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] font-bold text-green-400 animate-pulse">
-                        SYSTEM v2.8.5 ONLINE
+                    {/* VISUAL CHANGE: AMBER FOR V2.8.8 */}
+                    <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-400 animate-pulse">
+                        SYSTEM v2.8.8
                     </span>
                     
-                    {/* API STATUS INDICATOR */}
-                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold border ${
-                        apiStatus === 'ONLINE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 
-                        apiStatus === 'OFFLINE' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-gray-800 text-gray-500 border-gray-700'
-                    }`}>
-                        {apiStatus === 'ONLINE' ? <Server size={10} /> : apiStatus === 'OFFLINE' ? <WifiOff size={10} /> : <Loader size={10} className="animate-spin" />}
-                        {apiStatus === 'ONLINE' ? 'DB CONNECTED' : apiStatus === 'OFFLINE' ? 'DB DISCONNECTED' : 'CHECKING DB...'}
+                    {/* API STATUS INDICATOR WITH RETRY */}
+                    <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold border ${
+                            apiStatus === 'ONLINE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 
+                            apiStatus === 'OFFLINE' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
+                            apiStatus === 'DB_ERROR' ? 'bg-red-500/20 text-red-400 border-red-500/40' : 
+                            'bg-gray-800 text-gray-500 border-gray-700'
+                        }`}>
+                            {apiStatus === 'ONLINE' ? <Server size={10} /> : apiStatus === 'OFFLINE' ? <WifiOff size={10} /> : <Database size={10} />}
+                            {apiStatus === 'ONLINE' ? 'DB CONNECTED' : apiStatus === 'OFFLINE' ? 'SERVER OFFLINE' : apiStatus === 'DB_ERROR' ? 'DB FAILED' : 'CHECKING...'}
+                        </div>
+                        {apiStatus !== 'ONLINE' && apiStatus !== 'CHECKING' && (
+                            <button onClick={checkApi} className="text-[9px] text-gray-500 hover:text-white underline">
+                                {language === 'RU' ? 'Повторить' : 'Retry'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Error Message Display */}
+            {authError && (
+                <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
+                    <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+                    <div>
+                        <span className="font-bold block mb-1">Ошибка / Error:</span>
+                        {authError}
+                        {authError.includes('Vercel Storage') && (
+                            <a href="https://vercel.com/docs/storage/vercel-postgres" target="_blank" rel="noopener noreferrer" className="block mt-2 underline text-red-300 hover:text-white">
+                                Vercel Docs Guide
+                            </a>
+                        )}
+                    </div>
+                </div>
+            )}
             
             {showForgotPass ? (
                 <form onSubmit={handleForgotPassword} className="space-y-6 animate-in fade-in slide-in-from-right-4">
