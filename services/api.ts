@@ -1,4 +1,3 @@
-
 import { Product, Order, User, Ticket, ServiceOffering, ResourceItem, Review, ServiceRequest, UserRole } from '../types';
 
 // Helper to handle response
@@ -11,6 +10,16 @@ const handleResponse = async (response: Response) => {
 };
 
 export const api = {
+    // --- SYSTEM ---
+    async checkHealth() {
+        try {
+            const res = await fetch('/api/health');
+            return await res.json();
+        } catch (e) {
+            throw new Error('API_OFFLINE');
+        }
+    },
+
     // --- PRODUCTS ---
     async getProducts(): Promise<Product[]> {
         const res = await fetch('/api/products');
@@ -81,6 +90,15 @@ export const api = {
 
     async getAllUsers(): Promise<User[]> {
         const res = await fetch('/api/users');
+        return handleResponse(res);
+    },
+
+    async updateUser(userId: string, updates: Partial<User>) {
+        const res = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
         return handleResponse(res);
     },
 

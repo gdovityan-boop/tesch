@@ -1,7 +1,6 @@
-
 /* 
   TECHHACKER SERVERLESS BACKEND (Vercel Native)
-  v2.8.8 - Robust DB Connection Handling & Auto-Setup
+  v2.8.9 - Robust DB Connection Handling & User Management
 */
 
 import dotenv from 'dotenv';
@@ -403,6 +402,20 @@ app.get('/api/users', checkDb, async (req, res) => {
     }
 });
 
+// Update User (e.g. Role Promotion)
+app.put('/api/users/:id', checkDb, async (req, res) => {
+    try {
+        const { name, role, avatarUrl } = req.body;
+        await safeQuery(
+            'UPDATE users SET name = COALESCE($1, name), role = COALESCE($2, role), avatar_url = COALESCE($3, avatar_url) WHERE id = $4',
+            [name, role, avatarUrl, req.params.id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 4. TICKETS
 app.get('/api/tickets', checkDb, async (req, res) => {
     try {
@@ -594,7 +607,7 @@ app.get('/api/health', async (req, res) => {
         status: dbStatus === 'connected' ? 'ok' : 'error', 
         db: dbStatus,
         latency,
-        version: 'v2.8.8',
+        version: 'v2.8.9',
         timestamp: new Date() 
     });
 });
