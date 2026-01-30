@@ -1,6 +1,6 @@
 /* 
   TECHHACKER SERVERLESS BACKEND (Vercel Native)
-  v2.9.1 - Fixed Admin User Display & Order Joins
+  v2.9.2 - Auto-Admin gdovityan@gmail.com
 */
 
 import dotenv from 'dotenv';
@@ -83,7 +83,6 @@ const safeQuery = async (query, params = []) => {
 app.get('/api/setup', checkDb, async (req, res) => {
     try {
         console.log('🛠️ Starting Database Initialization...');
-        // (Schema kept brief for readability, ensures tables exist)
         const schema = `
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
@@ -180,8 +179,14 @@ app.get('/api/setup', checkDb, async (req, res) => {
             );
         `;
         await safeQuery(schema);
+        
+        // AUTO-ADMIN LOGIC
         await safeQuery(`INSERT INTO users (id, email, name, role, registration_source) VALUES ('admin-1', 'admin@techhacker.io', 'System Admin', 'ADMIN', 'EMAIL') ON CONFLICT (id) DO NOTHING;`);
-        res.json({ success: true, message: "Database initialized successfully" });
+        
+        // FORCE UPDATE SPECIFIC USER TO ADMIN
+        await safeQuery(`UPDATE users SET role = 'ADMIN' WHERE email = 'gdovityan@gmail.com';`);
+        
+        res.json({ success: true, message: "Database initialized successfully. Admins updated." });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -324,14 +329,25 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
 
     const { rows: existing } = await safeQuery('SELECT * FROM users WHERE email = $1', [email]);
     
+    // Check if this specific email should be admin (Safety check during login)
+    let role = 'USER';
+    if (email === 'gdovityan@gmail.com' || email === 'admin@techhacker.io') {
+        role = 'ADMIN';
+    }
+
     if (registrationSource === 'TELEGRAM') {
         if (existing.length > 0) {
+             // Update role if needed
+             if (role === 'ADMIN' && existing[0].role !== 'ADMIN') {
+                 await safeQuery(`UPDATE users SET role = 'ADMIN' WHERE email = $1`, [email]);
+                 existing[0].role = 'ADMIN';
+             }
              return res.json(toUserEntity(existing[0]));
         } else {
              const userId = `user-${Date.now()}`;
              await safeQuery(
                 'INSERT INTO users (id, email, name, role, avatar_url, telegram_id, registration_source) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-                [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
+                [userId, email, name, role, avatarUrl, telegramId, registrationSource]
              );
              const { rows: newUser } = await safeQuery('SELECT * FROM users WHERE id = $1', [userId]);
              return res.json(toUserEntity(newUser[0]));
@@ -340,6 +356,11 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
 
     if (!isRegister) {
         if (existing.length === 0) return res.status(404).json({ error: "Аккаунт не найден." });
+        // Update role if needed on login
+        if (role === 'ADMIN' && existing[0].role !== 'ADMIN') {
+             await safeQuery(`UPDATE users SET role = 'ADMIN' WHERE email = $1`, [email]);
+             existing[0].role = 'ADMIN';
+        }
         return res.json(toUserEntity(existing[0]));
     } else {
         if (existing.length > 0) return res.status(409).json({ error: "Email уже зарегистрирован." });
@@ -347,7 +368,7 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
         const userId = `user-${Date.now()}`;
         await safeQuery(
           'INSERT INTO users (id, email, name, role, avatar_url, telegram_id, registration_source) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
+          [userId, email, name, role, avatarUrl, telegramId, registrationSource]
         );
         const { rows: newUser } = await safeQuery('SELECT * FROM users WHERE id = $1', [userId]);
         return res.json(toUserEntity(newUser[0]));
@@ -572,7 +593,7 @@ app.get('/api/health', async (req, res) => {
             dbStatus = 'disconnected';
         }
     }
-    res.json({ status: dbStatus === 'connected' ? 'ok' : 'error', db: dbStatus, latency, version: 'v2.9.1' });
+    res.json({ status: dbStatus === 'connected' ? 'ok' : 'error', db: dbStatus, latency, version: 'v2.9.2' });
 });
 
 if (process.env.NODE_ENV !== 'production') {
