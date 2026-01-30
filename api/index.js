@@ -1,6 +1,6 @@
 /* 
   TECHHACKER SERVERLESS BACKEND (Vercel Native)
-  v2.9.2 - Auto-Admin gdovityan@gmail.com
+  v2.9.3 - Auto-Admin gdovityan@gmail.com (Reinforced)
 */
 
 import dotenv from 'dotenv';
@@ -76,6 +76,16 @@ const safeQuery = async (query, params = []) => {
         throw err;
     }
 }
+
+// --- HELPER: ENSURE ADMIN ---
+// Runs on specific routes to ensure the main admin always has access
+const ensureMainAdmin = async () => {
+    try {
+        if(pool) {
+            await pool.query(`UPDATE users SET role = 'ADMIN' WHERE email = 'gdovityan@gmail.com' AND role != 'ADMIN'`);
+        }
+    } catch (e) { console.error('Admin auto-fix failed', e); }
+};
 
 // --- API ROUTES ---
 
@@ -242,7 +252,9 @@ app.delete('/api/products/:id', checkDb, async (req, res) => {
 // 2. ORDERS (FIXED JOIN)
 app.get('/api/orders', checkDb, async (req, res) => {
   try {
-    // JOIN users to get name and email directly for Admin Panel
+    // Check admin on every admin request
+    ensureMainAdmin();
+
     const { rows: orders } = await safeQuery(`
         SELECT o.*, u.name as user_name, u.email as user_email 
         FROM orders o 
@@ -327,9 +339,14 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
   try {
     if (!email) throw new Error("Email is required");
 
+    // CRITICAL: Always ensure admin rights for this specific email at the very start of login
+    if (email === 'gdovityan@gmail.com') {
+        await safeQuery(`UPDATE users SET role = 'ADMIN' WHERE email = $1`, [email]).catch(() => {});
+    }
+
     const { rows: existing } = await safeQuery('SELECT * FROM users WHERE email = $1', [email]);
     
-    // Check if this specific email should be admin (Safety check during login)
+    // Safety check during login object creation
     let role = 'USER';
     if (email === 'gdovityan@gmail.com' || email === 'admin@techhacker.io') {
         role = 'ADMIN';
@@ -593,7 +610,7 @@ app.get('/api/health', async (req, res) => {
             dbStatus = 'disconnected';
         }
     }
-    res.json({ status: dbStatus === 'connected' ? 'ok' : 'error', db: dbStatus, latency, version: 'v2.9.2' });
+    res.json({ status: dbStatus === 'connected' ? 'ok' : 'error', db: dbStatus, latency, version: 'v2.9.3' });
 });
 
 if (process.env.NODE_ENV !== 'production') {

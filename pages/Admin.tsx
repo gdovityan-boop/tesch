@@ -5,7 +5,7 @@ import { UserRole, OrderStatus, TicketStatus, ProductType, Product } from '../ty
 import { 
     LayoutDashboard, Users, Box, ShoppingCart, MessageSquare, Briefcase, 
     CheckCircle, XCircle, CreditCard, Shield, Plus, Edit, Trash2, Search,
-    FileText, X, Save, ExternalLink
+    FileText, X, Save, ExternalLink, ArrowRight, Clock
 } from 'lucide-react';
 
 export const Admin = () => {
@@ -88,7 +88,7 @@ export const Admin = () => {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row gap-8 min-h-[80vh] p-4 relative">
+        <div className="flex flex-col lg:flex-row gap-8 min-h-[80vh] p-4 relative animate-in fade-in duration-500">
             {/* Success Notification */}
             {showSuccessModal && (
                 <div className="fixed top-24 right-4 z-[9999] bg-green-500 text-black px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right">
@@ -103,7 +103,7 @@ export const Admin = () => {
             {/* Sidebar */}
             <aside className="w-full lg:w-64 flex-shrink-0 bg-cyber-900/40 rounded-xl p-4 border border-white/5 h-fit">
                 <h2 className="text-xl font-bold mb-6 px-4 flex items-center gap-2 text-white">
-                    <Shield className="text-red-500" /> Admin
+                    <Shield className="text-red-500" /> Admin Panel
                 </h2>
                 <nav className="space-y-1">
                     {[
@@ -119,8 +119,8 @@ export const Admin = () => {
                             onClick={() => setActiveTab(item.id as any)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                                 activeTab === item.id 
-                                ? 'bg-cyber-primary/10 text-cyber-primary' 
-                                : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                ? 'bg-cyber-primary/10 text-cyber-primary border border-cyber-primary/20' 
+                                : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
                             }`}
                         >
                             <item.icon size={18} />
@@ -131,30 +131,94 @@ export const Admin = () => {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-grow">
+            <main className="flex-grow space-y-6">
                 
                 {/* 1. OVERVIEW TAB */}
                 {activeTab === 'overview' && (
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5">
-                            <h3 className="text-gray-400 text-sm">{t('Всего пользователей', 'Total Users')}</h3>
-                            <p className="text-3xl font-bold mt-2 text-white">{allUsers.length}</p>
+                    <div className="space-y-8">
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10"><Users size={64}/></div>
+                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider">{t('Пользователи', 'Total Users')}</h3>
+                                <p className="text-3xl font-bold mt-2 text-white">{allUsers.length}</p>
+                            </div>
+                            <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10"><ShoppingCart size={64}/></div>
+                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider">{t('Заказы', 'Total Orders')}</h3>
+                                <p className="text-3xl font-bold mt-2 text-white">{orders.length}</p>
+                            </div>
+                            <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard size={64}/></div>
+                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider">{t('Доход', 'Revenue')}</h3>
+                                <p className="text-3xl font-bold mt-2 text-green-400">
+                                    {orders.filter(o => o.status === OrderStatus.COMPLETED).reduce((acc, o) => acc + o.total, 0).toLocaleString()} ₽
+                                </p>
+                            </div>
+                            <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10"><MessageSquare size={64}/></div>
+                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider">{t('Тикеты', 'Open Tickets')}</h3>
+                                <p className="text-3xl font-bold mt-2 text-orange-400">{tickets.filter(t => t.status !== TicketStatus.RESOLVED).length}</p>
+                            </div>
                         </div>
-                        <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5">
-                            <h3 className="text-gray-400 text-sm">{t('Всего заказов', 'Total Orders')}</h3>
-                            <p className="text-3xl font-bold mt-2 text-white">{orders.length}</p>
+
+                        {/* Recent Activity Section */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Recent Orders */}
+                            <div className="bg-cyber-900/30 border border-white/5 rounded-xl p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-white flex items-center gap-2"><Clock size={18} className="text-cyber-primary"/> {t('Последние заказы', 'Recent Orders')}</h3>
+                                    <button onClick={() => setActiveTab('orders')} className="text-xs text-cyber-primary hover:underline">{t('Все заказы', 'View All')}</button>
+                                </div>
+                                <div className="space-y-3">
+                                    {orders.slice(0, 5).map(order => (
+                                        <div key={order.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                                    order.status === OrderStatus.COMPLETED ? 'bg-green-500/20 text-green-400' :
+                                                    order.status === OrderStatus.PROCESSING ? 'bg-orange-500/20 text-orange-400' :
+                                                    'bg-gray-700 text-gray-400'
+                                                }`}>
+                                                    {order.status === OrderStatus.COMPLETED ? <CheckCircle size={14}/> : <ShoppingCart size={14}/>}
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-bold text-white">{order.total.toLocaleString()} ₽</div>
+                                                    <div className="text-xs text-gray-500">{order.userName || order.userEmail || 'User'}</div>
+                                                </div>
+                                            </div>
+                                            <span className={`text-[10px] px-2 py-1 rounded border ${
+                                                order.status === OrderStatus.COMPLETED ? 'border-green-500/30 text-green-400' : 
+                                                order.status === OrderStatus.PROCESSING ? 'border-orange-500/30 text-orange-400' : 'border-gray-600 text-gray-500'
+                                            }`}>
+                                                {order.status}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {orders.length === 0 && <p className="text-sm text-gray-500 text-center py-4">{t('Нет заказов', 'No orders yet')}</p>}
+                                </div>
+                            </div>
+
+                            {/* Recent Users */}
+                            <div className="bg-cyber-900/30 border border-white/5 rounded-xl p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-white flex items-center gap-2"><Users size={18} className="text-purple-400"/> {t('Новые пользователи', 'New Users')}</h3>
+                                    <button onClick={() => setActiveTab('users')} className="text-xs text-purple-400 hover:underline">{t('Все', 'View All')}</button>
+                                </div>
+                                <div className="space-y-3">
+                                    {allUsers.slice(0, 5).map(u => (
+                                        <div key={u.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+                                            <img src={u.avatarUrl || 'https://via.placeholder.com/30'} className="w-8 h-8 rounded-full bg-black object-cover" />
+                                            <div className="flex-grow">
+                                                <div className="text-sm font-bold text-white">{u.name}</div>
+                                                <div className="text-xs text-gray-500">{u.email}</div>
+                                            </div>
+                                            <span className="text-[10px] bg-white/10 px-2 py-1 rounded text-gray-400">{u.role}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5">
-                            <h3 className="text-gray-400 text-sm">{t('Доход', 'Revenue')}</h3>
-                            <p className="text-3xl font-bold mt-2 text-green-400">
-                                {orders.filter(o => o.status === OrderStatus.COMPLETED).reduce((acc, o) => acc + o.total, 0).toLocaleString()} ₽
-                            </p>
-                        </div>
-                        <div className="bg-cyber-900/30 p-6 rounded-xl border border-white/5">
-                            <h3 className="text-gray-400 text-sm">{t('Активные тикеты', 'Open Tickets')}</h3>
-                            <p className="text-3xl font-bold mt-2 text-orange-400">{tickets.filter(t => t.status !== TicketStatus.RESOLVED).length}</p>
-                        </div>
-                     </div>
+                    </div>
                 )}
 
                 {/* 2. ORDERS TAB */}
