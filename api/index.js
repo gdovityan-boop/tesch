@@ -64,6 +64,17 @@ const checkDb = (req, res, next) => {
     next();
 };
 
+// Helper: Map Postgres Snake_Case to CamelCase for Frontend
+const toUserEntity = (row) => {
+    if (!row) return null;
+    return {
+        ...row,
+        avatarUrl: row.avatar_url, // Fix: Map avatar_url to avatarUrl
+        telegramId: row.telegram_id,
+        registrationSource: row.registration_source
+    };
+};
+
 // Global Error Handler for DB Operations
 const safeQuery = async (query, params = []) => {
     if (!pool) throw new Error('DB_NOT_INIT');
@@ -332,7 +343,7 @@ app.put('/api/orders/:id', checkDb, async (req, res) => {
     }
 });
 
-// 3. AUTH
+// 3. AUTH (FIXED MAPPING AND HANDLING)
 app.post('/api/auth/login', checkDb, async (req, res) => {
   const body = req.body || {};
   const { email, name, telegramId, avatarUrl, registrationSource } = body;
@@ -346,7 +357,8 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
     // TELEGRAM: Seamless logic
     if (registrationSource === 'TELEGRAM') {
         if (existing.length > 0) {
-             return res.json(existing[0]);
+             // User exists, return with mapping
+             return res.json(toUserEntity(existing[0]));
         } else {
              const userId = `user-${Date.now()}`;
              await safeQuery(
@@ -354,7 +366,7 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
                 [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
              );
              const { rows: newUser } = await safeQuery('SELECT * FROM users WHERE id = $1', [userId]);
-             return res.json(newUser[0]);
+             return res.json(toUserEntity(newUser[0]));
         }
     }
 
@@ -363,7 +375,7 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
         if (existing.length === 0) {
             return res.status(404).json({ error: "Аккаунт не найден. Проверьте Email или зарегистрируйтесь." });
         }
-        return res.json(existing[0]);
+        return res.json(toUserEntity(existing[0]));
     } else {
         if (existing.length > 0) {
              return res.status(409).json({ error: "Email уже зарегистрирован. Пожалуйста, войдите." });
@@ -375,7 +387,7 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
           [userId, email, name, 'USER', avatarUrl, telegramId, registrationSource]
         );
         const { rows: newUser } = await safeQuery('SELECT * FROM users WHERE id = $1', [userId]);
-        return res.json(newUser[0]);
+        return res.json(toUserEntity(newUser[0]));
     }
   } catch (err) {
     console.error("Auth Error:", err.message);
@@ -386,7 +398,7 @@ app.post('/api/auth/login', checkDb, async (req, res) => {
 app.get('/api/users', checkDb, async (req, res) => {
     try {
         const { rows } = await safeQuery('SELECT * FROM users');
-        res.json(rows);
+        res.json(rows.map(toUserEntity));
     } catch(err) {
         res.status(500).json({ error: err.message });
     }
