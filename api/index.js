@@ -1,7 +1,7 @@
 
 /* 
   TECHHACKER SERVERLESS BACKEND (Vercel Native)
-  v2.8.8 - Robust DB Connection Handling
+  v2.8.8 - Robust DB Connection Handling & Auto-Setup
 */
 
 import dotenv from 'dotenv';
@@ -79,6 +79,142 @@ const safeQuery = async (query, params = []) => {
 }
 
 // --- API ROUTES ---
+
+// 0. AUTO SETUP ENDPOINT (RUN ONCE)
+app.get('/api/setup', checkDb, async (req, res) => {
+    try {
+        console.log('🛠️ Starting Database Initialization...');
+        
+        // PostgreSQL Schema creation
+        const schema = `
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                name TEXT,
+                role TEXT DEFAULT 'USER',
+                avatar_url TEXT,
+                telegram_id TEXT,
+                registration_source TEXT DEFAULT 'EMAIL',
+                preferences JSONB DEFAULT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS products (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                title_ru TEXT,
+                description TEXT,
+                description_ru TEXT,
+                price DECIMAL(10, 2) DEFAULT 0.00,
+                type TEXT NOT NULL,
+                image TEXT,
+                download_url TEXT,
+                language TEXT DEFAULT 'EN',
+                features JSONB DEFAULT '[]',
+                features_ru JSONB DEFAULT '[]',
+                is_active BOOLEAN DEFAULT TRUE,
+                is_bonus BOOLEAN DEFAULT FALSE
+            );
+
+            CREATE TABLE IF NOT EXISTS service_offerings (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                price_label TEXT,
+                icon_key TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS orders (
+                id TEXT PRIMARY KEY,
+                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                total DECIMAL(10, 2) NOT NULL,
+                status TEXT DEFAULT 'PENDING',
+                payment_method TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                rejection_reason TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS order_items (
+                id SERIAL PRIMARY KEY,
+                order_id TEXT REFERENCES orders(id) ON DELETE CASCADE,
+                product_id TEXT REFERENCES products(id) ON DELETE CASCADE,
+                price_at_purchase DECIMAL(10, 2) NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS tickets (
+                id TEXT PRIMARY KEY,
+                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                subject TEXT NOT NULL,
+                status TEXT DEFAULT 'OPEN',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS ticket_messages (
+                id SERIAL PRIMARY KEY,
+                ticket_id TEXT REFERENCES tickets(id) ON DELETE CASCADE,
+                sender TEXT NOT NULL,
+                message_text TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS service_requests (
+                id TEXT PRIMARY KEY,
+                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                service_type TEXT NOT NULL,
+                contact_info TEXT NOT NULL,
+                details TEXT,
+                status TEXT DEFAULT 'NEW',
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                is_reviewed BOOLEAN DEFAULT FALSE
+            );
+
+            CREATE TABLE IF NOT EXISTS reviews (
+                id TEXT PRIMARY KEY,
+                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                product_id TEXT,
+                product_name TEXT,
+                rating INTEGER,
+                review_text TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS resources (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                category TEXT NOT NULL,
+                image TEXT,
+                download_url TEXT NOT NULL,
+                version TEXT,
+                date_added DATE DEFAULT CURRENT_DATE
+            );
+        `;
+
+        await safeQuery(schema);
+
+        // Seed Admin if not exists
+        await safeQuery(`
+            INSERT INTO users (id, email, name, role, registration_source) 
+            VALUES ('admin-1', 'admin@techhacker.io', 'System Admin', 'ADMIN', 'EMAIL')
+            ON CONFLICT (id) DO NOTHING;
+        `);
+
+        // Seed Services
+        await safeQuery(`
+            INSERT INTO service_offerings (id, title, description, price_label, icon_key) VALUES
+            ('bot-dev', 'Telegram Bot Development', 'Development of turnkey bots of any complexity.', 'От 10 000 ₽', 'Bot'),
+            ('ai-integration', 'AI Integration', 'Implementation of ChatGPT & Midjourney.', 'От 20 000 ₽', 'Shield'),
+            ('scripting', 'Automation Scripts', 'Python/JS scripts for automation.', 'От 5 000 ₽', 'Code')
+            ON CONFLICT (id) DO NOTHING;
+        `);
+
+        res.json({ success: true, message: "Database initialized successfully (Tables created & Admin seeded)" });
+    } catch (err) {
+        console.error("Setup Error:", err);
+        res.status(500).json({ error: err.message, stack: err.stack });
+    }
+});
 
 // 1. PRODUCTS
 app.get('/api/products', checkDb, async (req, res) => {
