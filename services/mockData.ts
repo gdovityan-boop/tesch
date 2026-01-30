@@ -6,8 +6,8 @@ import { Product, ProductType, User, UserRole, OrderStatus, TicketStatus, Ticket
 // ==========================================
 
 // 1. ВАШ ДОМЕН
-// ⚠️ ВАЖНО: При загрузке на хостинг поменяйте это на реальный домен (например, 'https://mysite.com')
-export const WEB_APP_URL = 'https://0svlnx3atw6mm5fv1pf60rull9wzzhyqmnym0ckocrnfgzwerh-h852644758.scf.usercontent.goog';
+// ⚠️ ВАЖНО: При загрузке на хостинг поменяйте это на реальный домен
+export const WEB_APP_URL = 'https://tesch.vercel.app'; // Production v3.3 Active
 
 // 2. ЮЗЕРНЕЙМ ВАШЕГО БОТА (Без @)
 export const TELEGRAM_BOT_USERNAME = 'TECHHACKER_bot';
